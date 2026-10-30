@@ -85,14 +85,15 @@
   .route { font-size: 26px; font-weight: 600; margin-top: 4px; line-height: 1.2; }
   .route .arrow { color: var(--muted); font-weight: 300; margin: 0 6px; }
   .deps { margin-top: 16px; -webkit-flex: 1; flex: 1; overflow: hidden; }
-  .dep { padding: 13px 0; border-top: 1px solid var(--line); }
+  .dep { padding: 10px 0; border-top: 1px solid var(--line); }
   .dep:first-child { border-top: 0; }
   .dep .time { width: 128px; }
-  .dep .sched { font-size: 30px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .dep .sched { font-size: 28px; line-height: 1.1; font-weight: 500; font-variant-numeric: tabular-nums; }
   .dep .delay { font-size: 17px; font-weight: 600; margin-left: 6px; }
-  .delay.ok { color: var(--ok); }
-  .delay.late { color: var(--warn); }
-  .delay.very { color: var(--bad); }
+  .dep .delay { color: var(--bad); }
+  .dep .actual { font-size: 19px; font-weight: 500; margin-top: 1px; font-variant-numeric: tabular-nums; }
+  .actual.ok { color: var(--ok); }
+  .actual.late { color: var(--bad); }
   .dep .info { min-width: 0; }
   .dep .train { font-size: 17px; font-weight: 600; }
   .dep .train .badge {
@@ -112,6 +113,7 @@
   .dep.past { padding: 8px 0 10px; }
   .dep.past .time, .dep.past .info, .dep.past .pl { opacity: .5; }
   .dep.past .sched { font-size: 22px; }
+  .dep.past .actual { font-size: 16px; }
   .dep.past .in { color: var(--bad); font-size: 18px; }
   .status { font-size: 12px; color: var(--muted); margin-top: 10px; }
   .status.err { color: var(--bad); }
@@ -326,8 +328,14 @@ function loadTrains() {
 
 function depRow(t, diff) {
   var delay = t.delayDeparture;
-  var dCls = delay == null ? '' : delay <= 0 ? 'ok' : delay < 6 ? 'late' : 'very';
-  var dTxt = delay == null ? '' : delay <= 0 ? '+0' : '+' + delay;
+  var dTxt = delay > 0 ? '+' + delay : '';
+  // tatsächliche Abfahrtszeit wie in der DB-App: grün = pünktlich, rot = verspätet
+  var actual = '';
+  if (delay != null && !t.isCancelled) {
+    var hm = t.scheduledDeparture.split(':');
+    var a = (+hm[0] * 60 + +hm[1] + delay + 1440) % 1440;
+    actual = '<div class="actual ' + (delay > 0 ? 'late' : 'ok') + '">' + pad(Math.floor(a / 60)) + ':' + pad(a % 60) + '</div>';
+  }
 
   var pl = t.platform || t.scheduledPlatform || '–';
   var plChanged = t.platform && t.scheduledPlatform && t.platform !== t.scheduledPlatform;
@@ -346,7 +354,7 @@ function depRow(t, diff) {
 
   return '<div class="row dep' + (past ? ' past' : '') + (t.isCancelled ? ' cancelled' : '') + (!past && !t.isCancelled && diff <= 10 ? ' soon' : '') + '">' +
     '<div class="time"><span class="sched">' + esc(t.scheduledDeparture) + '</span>' +
-    (dTxt && !t.isCancelled ? '<span class="delay ' + dCls + '">' + dTxt + '</span>' : '') + '</div>' +
+    (dTxt && !t.isCancelled ? '<span class="delay">' + dTxt + '</span>' : '') + actual + '</div>' +
     '<div class="grow info"><div class="train">' + (badge ? '<span class="badge">' + esc(badge) + '</span>' : '') + esc(parts.join(' ')) + '</div>' +
     '<div class="dest">→ ' + esc(t.destination) + '</div>' +
     (msg ? '<div class="msg">' + esc(msg) + '</div>' : '') + '</div>' +
@@ -378,8 +386,8 @@ function renderTrains(list) {
     shown++;
   }
 
-  // zuletzt abgefahrener Zug (max. 60 Min. her) ganz oben
-  if (last && last.diff >= -60) html = depRow(last.t, last.diff) + html;
+  // zuletzt abgefahrener Zug (verschwindet 10 Min. nach Abfahrt) ganz oben
+  if (last && last.diff >= -10) html = depRow(last.t, last.diff) + html;
 
   $('deps').innerHTML = html || '<div class="empty">Keine passenden Abfahrten gefunden.<br>Bahnhofsnamen prüfen.</div>';
   $('tStatus').className = 'status';
