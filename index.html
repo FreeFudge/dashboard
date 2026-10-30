@@ -109,6 +109,10 @@
   .dep.cancelled .sched, .dep.cancelled .train { text-decoration: line-through; color: var(--muted); }
   .dep.cancelled .in { color: var(--bad); font-size: 15px; }
   .dep.soon .in { color: var(--accent); }
+  .dep.past { padding: 8px 0 10px; }
+  .dep.past .time, .dep.past .info, .dep.past .pl { opacity: .5; }
+  .dep.past .sched { font-size: 22px; }
+  .dep.past .in { color: var(--bad); font-size: 18px; }
   .status { font-size: 12px; color: var(--muted); margin-top: 10px; }
   .status.err { color: var(--bad); }
   .empty { color: var(--muted); font-size: 17px; padding: 20px 0; }
@@ -155,7 +159,7 @@ var CONFIG = {
   nach:  'Frankfurt(Main)Hbf', // Zug muss über diesen Halt fahren
   titelVon:  'Walldorf',       // Anzeige-Name oben rechts
   titelNach: 'Frankfurt Hbf',
-  anzahl: 7,               // wie viele Abfahrten
+  anzahl: 6,               // wie viele kommende Abfahrten
   wetterIntervall: 15,     // Minuten
   bahnIntervall: 1.5       // Minuten
 };
@@ -312,7 +316,7 @@ function tErr(msg) {
 
 function loadTrains() {
   var url = 'https://dbf.finalrewind.org/' + encodeURIComponent(CONFIG.von) +
-    '.json?version=3&no_related=1&limit=25' +
+    '.json?version=3&no_related=1&past=1&limit=50' +
     (CONFIG.nach ? '&via=' + encodeURIComponent(CONFIG.nach) : '');
   getJSON(url, function (r) {
     if (r.error) return tErr(r.error);
@@ -320,10 +324,40 @@ function loadTrains() {
   }, tErr);
 }
 
+function depRow(t, diff) {
+  var delay = t.delayDeparture;
+  var dCls = delay == null ? '' : delay <= 0 ? 'ok' : delay < 6 ? 'late' : 'very';
+  var dTxt = delay == null ? '' : delay <= 0 ? '+0' : '+' + delay;
+
+  var pl = t.platform || t.scheduledPlatform || '–';
+  var plChanged = t.platform && t.scheduledPlatform && t.platform !== t.scheduledPlatform;
+
+  var msg = '';
+  var m = t.messages || {};
+  var msgs = (m.qos || []).concat(m.delay || []);
+  if (msgs.length) msg = msgs[msgs.length - 1].text;
+
+  var parts = String(t.train || '').split(' ');
+  var badge = parts.length > 1 ? parts.shift() : '';
+
+  var past = diff < 0;
+  if (past) msg = '';
+  var inTxt = past ? '−' + (-diff) + '<small> min</small>' : t.isCancelled ? 'fällt aus' : diff <= 0 ? 'jetzt' : diff + '<small> min</small>';
+
+  return '<div class="row dep' + (past ? ' past' : '') + (t.isCancelled ? ' cancelled' : '') + (!past && !t.isCancelled && diff <= 10 ? ' soon' : '') + '">' +
+    '<div class="time"><span class="sched">' + esc(t.scheduledDeparture) + '</span>' +
+    (dTxt && !t.isCancelled ? '<span class="delay ' + dCls + '">' + dTxt + '</span>' : '') + '</div>' +
+    '<div class="grow info"><div class="train">' + (badge ? '<span class="badge">' + esc(badge) + '</span>' : '') + esc(parts.join(' ')) + '</div>' +
+    '<div class="dest">→ ' + esc(t.destination) + '</div>' +
+    (msg ? '<div class="msg">' + esc(msg) + '</div>' : '') + '</div>' +
+    '<div class="right"><div class="in">' + inTxt + '</div>' +
+    '<div class="pl' + (plChanged ? ' changed' : '') + '">Gl. ' + esc(pl) + '</div></div></div>';
+}
+
 function renderTrains(list) {
   var now = new Date();
   var nowMin = now.getHours() * 60 + now.getMinutes();
-  var html = '', shown = 0;
+  var html = '', shown = 0, last = null;
 
   for (var i = 0; i < list.length && shown < +CONFIG.anzahl; i++) {
     var t = list[i];
@@ -335,34 +369,17 @@ function renderTrains(list) {
     var diff = real - nowMin;
     if (diff < -720) diff += 1440;                   // über Mitternacht
     if (diff > 720) diff -= 1440;
-    if (diff < 0 && !t.isCancelled) continue;        // schon weg
+    if (diff < 0) {                                  // schon weg
+      if (!t.isCancelled && (!last || diff >= last.diff)) last = { t: t, diff: diff };
+      continue;
+    }
 
-    var dCls = delay == null ? '' : delay <= 0 ? 'ok' : delay < 6 ? 'late' : 'very';
-    var dTxt = delay == null ? '' : delay <= 0 ? '+0' : '+' + delay;
-
-    var pl = t.platform || t.scheduledPlatform || '–';
-    var plChanged = t.platform && t.scheduledPlatform && t.platform !== t.scheduledPlatform;
-
-    var msg = '';
-    var m = t.messages || {};
-    var msgs = (m.qos || []).concat(m.delay || []);
-    if (msgs.length) msg = msgs[msgs.length - 1].text;
-
-    var parts = String(t.train || '').split(' ');
-    var badge = parts.length > 1 ? parts.shift() : '';
-
-    var inTxt = t.isCancelled ? 'fällt aus' : diff <= 0 ? 'jetzt' : diff + '<small> min</small>';
-
-    html += '<div class="row dep' + (t.isCancelled ? ' cancelled' : '') + (!t.isCancelled && diff <= 10 ? ' soon' : '') + '">' +
-      '<div class="time"><span class="sched">' + esc(t.scheduledDeparture) + '</span>' +
-      (dTxt && !t.isCancelled ? '<span class="delay ' + dCls + '">' + dTxt + '</span>' : '') + '</div>' +
-      '<div class="grow info"><div class="train">' + (badge ? '<span class="badge">' + esc(badge) + '</span>' : '') + esc(parts.join(' ')) + '</div>' +
-      '<div class="dest">→ ' + esc(t.destination) + '</div>' +
-      (msg ? '<div class="msg">' + esc(msg) + '</div>' : '') + '</div>' +
-      '<div class="right"><div class="in">' + inTxt + '</div>' +
-      '<div class="pl' + (plChanged ? ' changed' : '') + '">Gl. ' + esc(pl) + '</div></div></div>';
+    html += depRow(t, diff);
     shown++;
   }
+
+  // zuletzt abgefahrener Zug (max. 60 Min. her) ganz oben
+  if (last && last.diff >= -60) html = depRow(last.t, last.diff) + html;
 
   $('deps').innerHTML = html || '<div class="empty">Keine passenden Abfahrten gefunden.<br>Bahnhofsnamen prüfen.</div>';
   $('tStatus').className = 'status';
