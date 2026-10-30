@@ -110,6 +110,21 @@
   .dep.cancelled .sched, .dep.cancelled .train { text-decoration: line-through; color: var(--muted); }
   .dep.cancelled .in { color: var(--bad); font-size: 15px; }
   .dep.soon .in { color: var(--accent); }
+  /* nächster Zug: doppelt so hoch, hebt sich ab */
+  .dep.hero { padding: 22px 12px; margin: 4px 0; background: #1c2633; border-radius: 12px; border-top: 0; }
+  .dep.hero + .dep { border-top: 0; }
+  .dep.hero .time { width: 140px; }
+  .dep.hero .sched { font-size: 44px; }
+  .dep.hero .delay { font-size: 22px; }
+  .dep.hero .actual { font-size: 28px; margin-top: 2px; }
+  .dep.hero .train { font-size: 22px; }
+  .dep.hero .train .badge { font-size: 15px; padding: 3px 9px; }
+  .dep.hero .dest { font-size: 16px; margin-top: 4px; }
+  .dep.hero .msg { font-size: 15px; }
+  .dep.hero .right { width: 92px; }
+  .dep.hero .in { font-size: 38px; }
+  .dep.hero .in small { font-size: 17px; }
+  .dep.hero .pl { font-size: 18px; margin-top: 4px; }
   .dep.past { padding: 8px 0 10px; }
   .dep.past .time, .dep.past .info, .dep.past .pl { opacity: .5; }
   .dep.past .sched { font-size: 22px; }
@@ -326,7 +341,7 @@ function loadTrains() {
   }, tErr);
 }
 
-function depRow(t, diff) {
+function depRow(t, diff, hero) {
   var delay = t.delayDeparture;
   var dTxt = delay > 0 ? '+' + delay : '';
   // tatsächliche Abfahrtszeit wie in der DB-App: grün = pünktlich, rot = verspätet
@@ -352,7 +367,7 @@ function depRow(t, diff) {
   if (past) msg = '';
   var inTxt = past ? '−' + (-diff) + '<small> min</small>' : t.isCancelled ? 'fällt aus' : diff <= 0 ? 'jetzt' : diff + '<small> min</small>';
 
-  return '<div class="row dep' + (past ? ' past' : '') + (t.isCancelled ? ' cancelled' : '') + (!past && !t.isCancelled && diff <= 10 ? ' soon' : '') + '">' +
+  return '<div class="row dep' + (past ? ' past' : '') + (t.isCancelled ? ' cancelled' : '') + (!past && !t.isCancelled && diff <= 10 ? ' soon' : '') + (hero ? ' hero' : '') + '">' +
     '<div class="time"><span class="sched">' + esc(t.scheduledDeparture) + '</span>' +
     (dTxt && !t.isCancelled ? '<span class="delay">' + dTxt + '</span>' : '') + actual + '</div>' +
     '<div class="grow info"><div class="train">' + (badge ? '<span class="badge">' + esc(badge) + '</span>' : '') + esc(parts.join(' ')) + '</div>' +
@@ -365,7 +380,7 @@ function depRow(t, diff) {
 function renderTrains(list) {
   var now = new Date();
   var nowMin = now.getHours() * 60 + now.getMinutes();
-  var html = '', shown = 0, last = null;
+  var html = '', shown = 0, last = null, heroDone = false;
 
   for (var i = 0; i < list.length && shown < +CONFIG.anzahl; i++) {
     var t = list[i];
@@ -382,7 +397,9 @@ function renderTrains(list) {
       continue;
     }
 
-    html += depRow(t, diff);
+    var hero = !heroDone && !t.isCancelled;
+    if (hero) heroDone = true;
+    html += depRow(t, diff, hero);
     shown++;
   }
 
