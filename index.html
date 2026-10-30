@@ -396,17 +396,41 @@ function renderTrains(list) {
 
 /* ---------- Start ---------- */
 $('route').innerHTML = esc(CONFIG.titelVon || CONFIG.von) + (CONFIG.nach ? '<span class="arrow">→</span>' + esc(CONFIG.titelNach || CONFIG.nach) : '');
+/*
+ * Zeitsteuerung: Ein Takt alle 5 Sekunden prüft, ob Daten fällig sind.
+ * iOS pausiert Timer, solange das Display aus ist. Nach dem Einschalten
+ * merkt der Takt die Lücke und lädt sofort neu, statt 90 s zu warten.
+ */
+var lastTrains = 0, lastWeather = 0, lastTick = Date.now(), pageStart = Date.now();
+function refreshAll() {
+  lastTrains = Date.now(); loadTrains();
+  lastWeather = Date.now(); loadWeather();
+}
+function tick() {
+  var now = Date.now();
+  tickClock();
+  if (now - pageStart > 6 * 3600000) { location.reload(); return; } // alle 6 h komplett neu laden
+  if (now - lastTick > 20000) { lastTick = now; refreshAll(); return; } // Display war aus
+  lastTick = now;
+  if (now - lastTrains >= CONFIG.bahnIntervall * 60000) { lastTrains = now; loadTrains(); }
+  if (now - lastWeather >= CONFIG.wetterIntervall * 60000) { lastWeather = now; loadWeather(); }
+}
+function onWake() {
+  if (document.hidden || Date.now() - lastTrains < 5000) return;
+  lastTick = Date.now();
+  tickClock();
+  refreshAll();
+}
+document.addEventListener('visibilitychange', onWake);
+window.addEventListener('pageshow', function (e) { if (e.persisted) onWake(); });
+window.addEventListener('focus', onWake);
+
 tickClock();
-setInterval(tickClock, 5000);
-loadWeather();
-setInterval(loadWeather, CONFIG.wetterIntervall * 60000);
-loadTrains();
-setInterval(loadTrains, CONFIG.bahnIntervall * 60000);
-// Alle 6 Stunden komplett neu laden – hält das alte iPad stabil
-setTimeout(function () { location.reload(); }, 6 * 3600000);
+refreshAll();
+setInterval(tick, 5000);
 // Tippen auf eine Seite = sofort aktualisieren
-$('weather').addEventListener('click', loadWeather);
-$('trains').addEventListener('click', loadTrains);
+$('weather').addEventListener('click', function () { lastWeather = Date.now(); loadWeather(); });
+$('trains').addEventListener('click', function () { lastTrains = Date.now(); loadTrains(); });
 </script>
 </body>
 </html>
