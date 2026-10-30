@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dashboard">
+<title>Dashboard</title>
+<style>
+  /*
+   * Bewusst konservatives CSS/JS: läuft auf iOS 12 / Safari 12 (iPad Air 1).
+   * Kein flex-gap, kein ?. / ??, keine Arrow-Functions, kein fetch.
+   */
+  :root {
+    --bg: #0e1116;
+    --panel: #161b22;
+    --line: #262d36;
+    --text: #e8ecf1;
+    --muted: #8b95a3;
+    --accent: #6cb6ff;
+    --ok: #4cc38a;
+    --warn: #f0b429;
+    --bad: #ff6b6b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); }
+  body {
+    font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-user-select: none;
+    overflow: hidden;
+    display: -webkit-flex; display: flex;
+    padding: 16px;
+  }
+  .panel {
+    -webkit-flex: 1; flex: 1;
+    background: var(--panel);
+    border-radius: 18px;
+    padding: 22px 24px;
+    display: -webkit-flex; display: flex;
+    -webkit-flex-direction: column; flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .panel + .panel { margin-left: 16px; }
+  @media (orientation: portrait) {
+    body { -webkit-flex-direction: column; flex-direction: column; }
+    .panel + .panel { margin-left: 0; margin-top: 16px; }
+    .days { display: none; }
+  }
+  .label {
+    font-size: 13px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600;
+  }
+  .row { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; }
+  .grow { -webkit-flex: 1; flex: 1; min-width: 0; }
+
+  /* ---------- Wetter ---------- */
+  .clock { font-size: 64px; font-weight: 200; line-height: 1; letter-spacing: -1px; }
+  .date { font-size: 18px; color: var(--muted); margin-top: 6px; }
+  .now { margin-top: 26px; }
+  .now-icon { font-size: 78px; line-height: 1; margin-right: 18px; }
+  .now-temp { font-size: 72px; font-weight: 200; line-height: 1; }
+  .now-desc { font-size: 20px; margin-top: 4px; }
+  .now-meta { font-size: 15px; color: var(--muted); margin-top: 6px; }
+  .hours {
+    display: -webkit-flex; display: flex;
+    margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line);
+  }
+  .hour { -webkit-flex: 1; flex: 1; text-align: center; }
+  .hour .t { font-size: 13px; color: var(--muted); }
+  .hour .i { font-size: 26px; margin: 6px 0 4px; }
+  .hour .v { font-size: 17px; }
+  .hour .p { font-size: 12px; color: var(--accent); margin-top: 2px; min-height: 14px; }
+  .days { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--line); }
+  .day { padding: 7px 0; font-size: 17px; }
+  .day .n { width: 64px; color: var(--muted); }
+  .day .i { width: 40px; font-size: 22px; }
+  .day .p { width: 56px; font-size: 13px; color: var(--accent); }
+  .day .mm { width: 92px; text-align: right; }
+  .day .mm span { color: var(--muted); }
+
+  /* ---------- Bahn ---------- */
+  .route { font-size: 26px; font-weight: 600; margin-top: 4px; line-height: 1.2; }
+  .route .arrow { color: var(--muted); font-weight: 300; margin: 0 6px; }
+  .deps { margin-top: 16px; -webkit-flex: 1; flex: 1; overflow: hidden; }
+  .dep { padding: 13px 0; border-top: 1px solid var(--line); }
+  .dep:first-child { border-top: 0; }
+  .dep .time { width: 128px; }
+  .dep .sched { font-size: 30px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .dep .delay { font-size: 17px; font-weight: 600; margin-left: 6px; }
+  .delay.ok { color: var(--ok); }
+  .delay.late { color: var(--warn); }
+  .delay.very { color: var(--bad); }
+  .dep .info { min-width: 0; }
+  .dep .train { font-size: 17px; font-weight: 600; }
+  .dep .train .badge {
+    display: inline-block; font-size: 12px; padding: 2px 7px; border-radius: 6px;
+    background: #263445; color: var(--accent); margin-right: 8px; vertical-align: 2px;
+  }
+  .dep .dest { font-size: 15px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .dep .msg { font-size: 13px; color: var(--warn); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dep .right { text-align: right; width: 92px; }
+  .dep .in { font-size: 22px; font-weight: 600; }
+  .dep .in small { font-size: 13px; font-weight: 400; color: var(--muted); }
+  .dep .pl { font-size: 14px; color: var(--muted); margin-top: 2px; }
+  .dep .pl.changed { color: var(--warn); font-weight: 600; }
+  .dep.cancelled .sched, .dep.cancelled .train { text-decoration: line-through; color: var(--muted); }
+  .dep.cancelled .in { color: var(--bad); font-size: 15px; }
+  .dep.soon .in { color: var(--accent); }
+  .status { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .status.err { color: var(--bad); }
+  .empty { color: var(--muted); font-size: 17px; padding: 20px 0; }
+</style>
+</head>
+<body>
+
+<section class="panel" id="weather">
+  <div class="clock" id="clock">--:--</div>
+  <div class="date" id="date"></div>
+
+  <div class="row now">
+    <div class="now-icon" id="nowIcon">·</div>
+    <div class="grow">
+      <div class="now-temp" id="nowTemp">--°</div>
+      <div class="now-desc" id="nowDesc">Wetter wird geladen …</div>
+      <div class="now-meta" id="nowMeta"></div>
+    </div>
+  </div>
+
+  <div class="hours" id="hours"></div>
+  <div class="days" id="days"></div>
+  <div class="status" id="wStatus"></div>
+</section>
+
+<section class="panel" id="trains">
+  <div class="label">Nächste Züge</div>
+  <div class="route" id="route"></div>
+  <div class="deps" id="deps"><div class="empty">Abfahrten werden geladen …</div></div>
+  <div class="status" id="tStatus"></div>
+</section>
+
+<script>
+/* =====================================================================
+ * EINSTELLUNGEN
+ * Entweder hier ändern – oder bequemer über die Adresse, z. B.:
+ *   index.html?von=Walldorf(Hess)&nach=Frankfurt(Main)Hbf&titelVon=Walldorf&titelNach=Frankfurt Hbf
+ * ===================================================================== */
+var CONFIG = {
+  ort:   'Mörfelden-Walldorf', // Ortsname für die Anzeige
+  lat:   '49.99',              // Koordinaten (64546 Mörfelden-Walldorf)
+  lon:   '8.58',
+  von:   'Walldorf(Hess)',     // Abfahrtsbahnhof, exakter DB-Name
+  nach:  'Frankfurt(Main)Hbf', // Zug muss über diesen Halt fahren
+  titelVon:  'Walldorf',       // Anzeige-Name oben rechts
+  titelNach: 'Frankfurt Hbf',
+  anzahl: 7,               // wie viele Abfahrten
+  wetterIntervall: 15,     // Minuten
+  bahnIntervall: 1.5       // Minuten
+};
+
+/* ---------- URL-Parameter übernehmen ---------- */
+(function () {
+  var q = location.search.replace(/^\?/, '').split('&');
+  for (var i = 0; i < q.length; i++) {
+    var kv = q[i].split('=');
+    if (!kv[0]) continue;
+    var k = decodeURIComponent(kv[0]);
+    var v = decodeURIComponent((kv[1] || '').replace(/\+/g, ' '));
+    if (CONFIG.hasOwnProperty(k)) CONFIG[k] = v;
+    if (k === 'ort' && !/[?&]lat=/.test(location.search)) { CONFIG.lat = ''; CONFIG.lon = ''; }
+  }
+})();
+
+var TAGE = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+var TAGE_LANG = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+var MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+
+function $(id) { return document.getElementById(id); }
+function pad(n) { return (n < 10 ? '0' : '') + n; }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+  });
+}
+function hhmm(d) { return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+
+function getJSON(url, ok, fail) {
+  var x = new XMLHttpRequest();
+  x.open('GET', url, true);
+  x.timeout = 20000;
+  x.onload = function () {
+    if (x.status >= 200 && x.status < 300) {
+      try { ok(JSON.parse(x.responseText)); } catch (e) { fail('Antwort unlesbar'); }
+    } else { fail('HTTP ' + x.status); }
+  };
+  x.onerror = function () { fail('keine Verbindung'); };
+  x.ontimeout = function () { fail('Zeitüberschreitung'); };
+  x.send();
+}
+
+function store(k, v) {
+  try {
+    if (v === undefined) return JSON.parse(localStorage.getItem(k));
+    localStorage.setItem(k, JSON.stringify(v));
+  } catch (e) { return null; }
+}
+
+/* ---------- Uhr ---------- */
+function tickClock() {
+  var d = new Date();
+  $('clock').textContent = hhmm(d);
+  $('date').textContent = TAGE_LANG[d.getDay()] + ', ' + d.getDate() + '. ' + MONATE[d.getMonth()] + ' · ' + CONFIG.ort;
+}
+
+/* ---------- Wetter (Open-Meteo, ohne API-Key) ---------- */
+function wmo(code, isDay) {
+  var night = isDay === 0;
+  if (code === 0) return [night ? '🌙' : '☀️', 'Klar'];
+  if (code === 1) return [night ? '🌙' : '🌤️', 'Überwiegend klar'];
+  if (code === 2) return [night ? '☁️' : '⛅', 'Teilweise bewölkt'];
+  if (code === 3) return ['☁️', 'Bedeckt'];
+  if (code === 45 || code === 48) return ['🌫️', 'Nebel'];
+  if (code >= 51 && code <= 57) return ['🌦️', 'Nieselregen'];
+  if (code >= 61 && code <= 65) return ['🌧️', 'Regen'];
+  if (code === 66 || code === 67) return ['🧊', 'Gefrierender Regen'];
+  if (code >= 71 && code <= 77) return ['🌨️', 'Schnee'];
+  if (code >= 80 && code <= 82) return ['🌦️', 'Regenschauer'];
+  if (code === 85 || code === 86) return ['🌨️', 'Schneeschauer'];
+  if (code >= 95) return ['⛈️', 'Gewitter'];
+  return ['·', ''];
+}
+
+function withCoords(cb) {
+  if (CONFIG.lat && CONFIG.lon) return cb(CONFIG.lat, CONFIG.lon);
+  var key = 'geo:' + CONFIG.ort;
+  var cached = store(key);
+  if (cached) return cb(cached[0], cached[1]);
+  getJSON('https://geocoding-api.open-meteo.com/v1/search?count=1&language=de&name=' + encodeURIComponent(CONFIG.ort),
+    function (r) {
+      if (!r.results || !r.results.length) return wErr('Ort „' + CONFIG.ort + '“ nicht gefunden');
+      var g = r.results[0];
+      store(key, [g.latitude, g.longitude]);
+      cb(g.latitude, g.longitude);
+    }, wErr);
+}
+
+function wErr(msg) {
+  $('wStatus').className = 'status err';
+  $('wStatus').textContent = 'Wetter: ' + msg + ' – neuer Versuch folgt';
+}
+
+function loadWeather() {
+  withCoords(function (lat, lon) {
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
+      '&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,is_day' +
+      '&hourly=temperature_2m,weather_code,precipitation_probability,is_day' +
+      '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
+      '&timezone=Europe%2FBerlin&forecast_days=6&wind_speed_unit=kmh';
+    getJSON(url, renderWeather, wErr);
+  });
+}
+
+function renderWeather(w) {
+  var c = w.current, h = w.hourly, d = w.daily, i;
+  var ic = wmo(c.weather_code, c.is_day);
+  $('nowIcon').textContent = ic[0];
+  $('nowTemp').textContent = Math.round(c.temperature_2m) + '°';
+  $('nowDesc').textContent = ic[1];
+
+  // Startindex: erste Stunde nach "jetzt" (Zeitstrings im Format YYYY-MM-DDTHH:MM, direkt vergleichbar)
+  var start = 0;
+  while (start < h.time.length && h.time[start] <= c.time) start++;
+  var rainNow = h.precipitation_probability[Math.max(0, start - 1)];
+  $('nowMeta').textContent = 'Gefühlt ' + Math.round(c.apparent_temperature) + '° · Wind ' +
+    Math.round(c.wind_speed_10m) + ' km/h' + (rainNow != null ? ' · Regen ' + rainNow + ' %' : '');
+
+  var html = '';
+  for (i = start; i < start + 8 && i < h.time.length; i++) {
+    var hi = wmo(h.weather_code[i], h.is_day[i]);
+    var p = h.precipitation_probability[i];
+    html += '<div class="hour"><div class="t">' + h.time[i].substr(11, 2) + ' Uhr</div>' +
+      '<div class="i">' + hi[0] + '</div><div class="v">' + Math.round(h.temperature_2m[i]) + '°</div>' +
+      '<div class="p">' + (p >= 20 ? p + ' %' : '') + '</div></div>';
+  }
+  $('hours').innerHTML = html;
+
+  html = '';
+  for (i = 0; i < d.time.length; i++) {
+    var parts = d.time[i].split('-');
+    var day = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+    var di = wmo(d.weather_code[i], 1);
+    var dp = d.precipitation_probability_max[i];
+    html += '<div class="row day"><div class="n">' + (i === 0 ? 'Heute' : TAGE[day.getDay()]) + '</div>' +
+      '<div class="i">' + di[0] + '</div><div class="grow">' + esc(di[1]) + '</div>' +
+      '<div class="p">' + (dp >= 20 ? '💧' + dp + ' %' : '') + '</div>' +
+      '<div class="mm"><span>' + Math.round(d.temperature_2m_min[i]) + '°</span> / ' +
+      Math.round(d.temperature_2m_max[i]) + '°</div></div>';
+  }
+  $('days').innerHTML = html;
+
+  $('wStatus').className = 'status';
+  $('wStatus').textContent = 'Wetter aktualisiert ' + hhmm(new Date()) + ' · Open-Meteo';
+}
+
+/* ---------- Bahn (DBF / IRIS-Echtzeitdaten der DB, ohne API-Key) ---------- */
+function tErr(msg) {
+  $('tStatus').className = 'status err';
+  $('tStatus').textContent = 'Bahn: ' + msg + ' – neuer Versuch folgt';
+}
+
+function loadTrains() {
+  var url = 'https://dbf.finalrewind.org/' + encodeURIComponent(CONFIG.von) +
+    '.json?version=3&no_related=1&limit=25' +
+    (CONFIG.nach ? '&via=' + encodeURIComponent(CONFIG.nach) : '');
+  getJSON(url, function (r) {
+    if (r.error) return tErr(r.error);
+    renderTrains(r.departures || []);
+  }, tErr);
+}
+
+function renderTrains(list) {
+  var now = new Date();
+  var nowMin = now.getHours() * 60 + now.getMinutes();
+  var html = '', shown = 0;
+
+  for (var i = 0; i < list.length && shown < +CONFIG.anzahl; i++) {
+    var t = list[i];
+    if (!t.scheduledDeparture) continue;            // endet hier – keine Abfahrt
+    var hm = t.scheduledDeparture.split(':');
+    var sched = +hm[0] * 60 + +hm[1];
+    var delay = t.delayDeparture;                    // null = keine Echtzeit
+    var real = sched + (delay || 0);
+    var diff = real - nowMin;
+    if (diff < -720) diff += 1440;                   // über Mitternacht
+    if (diff > 720) diff -= 1440;
+    if (diff < 0 && !t.isCancelled) continue;        // schon weg
+
+    var dCls = delay == null ? '' : delay <= 0 ? 'ok' : delay < 6 ? 'late' : 'very';
+    var dTxt = delay == null ? '' : delay <= 0 ? '+0' : '+' + delay;
+
+    var pl = t.platform || t.scheduledPlatform || '–';
+    var plChanged = t.platform && t.scheduledPlatform && t.platform !== t.scheduledPlatform;
+
+    var msg = '';
+    var m = t.messages || {};
+    var msgs = (m.qos || []).concat(m.delay || []);
+    if (msgs.length) msg = msgs[msgs.length - 1].text;
+
+    var parts = String(t.train || '').split(' ');
+    var badge = parts.length > 1 ? parts.shift() : '';
+
+    var inTxt = t.isCancelled ? 'fällt aus' : diff <= 0 ? 'jetzt' : diff + '<small> min</small>';
+
+    html += '<div class="row dep' + (t.isCancelled ? ' cancelled' : '') + (!t.isCancelled && diff <= 10 ? ' soon' : '') + '">' +
+      '<div class="time"><span class="sched">' + esc(t.scheduledDeparture) + '</span>' +
+      (dTxt && !t.isCancelled ? '<span class="delay ' + dCls + '">' + dTxt + '</span>' : '') + '</div>' +
+      '<div class="grow info"><div class="train">' + (badge ? '<span class="badge">' + esc(badge) + '</span>' : '') + esc(parts.join(' ')) + '</div>' +
+      '<div class="dest">→ ' + esc(t.destination) + '</div>' +
+      (msg ? '<div class="msg">' + esc(msg) + '</div>' : '') + '</div>' +
+      '<div class="right"><div class="in">' + inTxt + '</div>' +
+      '<div class="pl' + (plChanged ? ' changed' : '') + '">Gl. ' + esc(pl) + '</div></div></div>';
+    shown++;
+  }
+
+  $('deps').innerHTML = html || '<div class="empty">Keine passenden Abfahrten gefunden.<br>Bahnhofsnamen prüfen.</div>';
+  $('tStatus').className = 'status';
+  $('tStatus').textContent = 'Aktualisiert ' + hhmm(now) + ' · Echtzeitdaten der DB via dbf.finalrewind.org';
+}
+
+/* ---------- Start ---------- */
+$('route').innerHTML = esc(CONFIG.titelVon || CONFIG.von) + (CONFIG.nach ? '<span class="arrow">→</span>' + esc(CONFIG.titelNach || CONFIG.nach) : '');
+tickClock();
+setInterval(tickClock, 5000);
+loadWeather();
+setInterval(loadWeather, CONFIG.wetterIntervall * 60000);
+loadTrains();
+setInterval(loadTrains, CONFIG.bahnIntervall * 60000);
+// Alle 6 Stunden komplett neu laden – hält das alte iPad stabil
+setTimeout(function () { location.reload(); }, 6 * 3600000);
+// Tippen auf eine Seite = sofort aktualisieren
+$('weather').addEventListener('click', loadWeather);
+$('trains').addEventListener('click', loadTrains);
+</script>
+</body>
+</html>
