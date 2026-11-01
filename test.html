@@ -100,6 +100,12 @@
   body { padding: 8px; }
   .panel + .panel, .panel + .col { margin-left: 10px; }
   .col .panel + .panel { margin-top: 10px; }
+  /* Große Uhr: klar abgesetzt von den Abfahrtszeiten */
+  #weather .clock, .narrow #weather .clock { font-size: 104px; font-weight: 600; letter-spacing: -3px; line-height: .9; color: #ffffff; font-variant-numeric: tabular-nums; }
+  #weather .clock .colon { opacity: .55; margin: 0 2px; }
+  #weather .date, .narrow #weather .date { font-size: 18px; color: var(--accent); margin-top: 8px; font-weight: 500; }
+  #weather { padding-top: 14px; }
+  #weather .hours { padding-top: 6px; }
   /* Vollbild / Home-Bildschirm: Bedienknöpfe ausblenden */
   .kiosk .fs, .kiosk .gear { display: none; }
   .kiosk.showgear .gear { display: block; }
@@ -229,6 +235,13 @@
   .status { font-size: 12px; color: var(--muted); margin-top: 10px; }
   .status.err { color: var(--bad); }
   .empty { color: var(--muted); font-size: 17px; padding: 20px 0; }
+  /* Uhr-Overrides zuletzt, damit sie überall greifen */
+  #weather .clock { font-size: 104px; }
+  .narrow #weather .clock { font-size: 84px; letter-spacing: -2px; }
+  .narrow #weather .now-icon { font-size: 34px; margin-right: 8px; }
+  .narrow #weather .now-temp { font-size: 38px; }
+  .narrow #weather .now-desc { font-size: 15px; }
+  .narrow #weather .now-meta { font-size: 12px; }
 </style>
 </head>
 <body>
@@ -360,7 +373,7 @@ function store(k, v) {
 /* ---------- Uhr ---------- */
 function tickClock() {
   var d = new Date();
-  $('clock').textContent = hhmm(d);
+  $('clock').innerHTML = pad(d.getHours()) + '<span class="colon">:</span>' + pad(d.getMinutes());
   $('date').textContent = TAGE_LANG[d.getDay()] + ', ' + d.getDate() + '. ' + MONATE[d.getMonth()];
 }
 
