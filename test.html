@@ -226,9 +226,11 @@
 <div class="sheet" id="sheet">
   <div class="box">
     <h3>Kamera-Test einrichten</h3>
-    <p class="hint">Wird nur auf diesem Gerät gespeichert, nicht auf GitHub.</p>
+    <p class="hint">Wird nur in diesem Browser auf diesem Gerät gespeichert, nicht auf GitHub.</p>
     <label>IP-Adresse des Rekorders<input id="fIp" placeholder="z. B. 192.168.178.50" inputmode="decimal" autocomplete="off"></label>
     <label>Protokoll<select id="fProto"><option value="https">https (empfohlen)</option><option value="http">http</option></select></label>
+    <label>Benutzer (optional, z. B. nur-Ansehen-Benutzer)<input id="fUser" autocomplete="off" autocapitalize="off"></label>
+    <label>Passwort (optional)<input id="fPass" type="password" autocomplete="off"></label>
     <label>Kameranamen (mit Komma getrennt)<input id="fNames" placeholder="Einfahrt, Haustür, Garten, Hof"></label>
     <label>Aktualisierung (Sekunden)<input id="fInt" inputmode="decimal" placeholder="1"></label>
     <details><summary>Erweitert: Bild-Adresse</summary>
@@ -501,8 +503,10 @@ if (!CAM.names) CAM.names = 'Einfahrt, Haustür, Garten, Hof';
 if (!CAM.int) CAM.int = 1;
 var camTimer = null, camBusy = [false, false, false, false], camStats = [{ok:0,err:0},{ok:0,err:0},{ok:0,err:0},{ok:0,err:0}];
 
-function camUrl(ch) {
-  return CAM.tpl.replace('{proto}', CAM.proto).replace('{ip}', CAM.ip).replace('{ch}', ch) +
+function camUrl(ch, hideCred) {
+  var host = CAM.ip;
+  if (CAM.user) host = encodeURIComponent(CAM.user) + ':' + (hideCred ? '***' : encodeURIComponent(CAM.pass || '')) + '@' + host;
+  return CAM.tpl.replace('{proto}', CAM.proto).replace('{ip}', host).replace('{ch}', ch) +
     (CAM.tpl.indexOf('?') >= 0 ? '&' : '?') + '_t=' + Date.now();
 }
 function camLabel() {
@@ -540,19 +544,19 @@ function camStart() {
   camTimer = setInterval(tickCams, Math.max(0.5, +CAM.int) * 1000);
 }
 function diag() {
-  var lines = ['Seite: ' + location.protocol + '//' + location.host, 'Bild-URL Kanal 0: ' + (CAM.ip ? camUrl(0).replace(/&_t=\d+/, '') : '–')];
+  var lines = ['Seite: ' + location.protocol + '//' + location.host, 'Bild-URL Kanal 0: ' + (CAM.ip ? camUrl(0, true).replace(/&_t=\d+/, '') : '–')];
   for (var i = 0; i < 4; i++) lines.push('Kanal ' + i + ': ' + camStats[i].ok + ' ok, ' + camStats[i].err + ' Fehler');
   $('diag').textContent = lines.join('\n');
 }
 function openSheet() {
-  $('fIp').value = CAM.ip || ''; $('fProto').value = CAM.proto; $('fNames').value = CAM.names;
+  $('fIp').value = CAM.ip || ''; $('fUser').value = CAM.user || ''; $('fPass').value = CAM.pass || ''; $('fProto').value = CAM.proto; $('fNames').value = CAM.names;
   $('fInt').value = CAM.int; $('fTpl').value = CAM.tpl; diag();
   $('sheet').className = 'sheet open';
 }
 $('gear').addEventListener('click', openSheet);
 $('bClose').addEventListener('click', function () { $('sheet').className = 'sheet'; });
 $('bSave').addEventListener('click', function () {
-  CAM.ip = $('fIp').value.trim(); CAM.proto = $('fProto').value; CAM.names = $('fNames').value || CAM.names;
+  CAM.ip = $('fIp').value.trim(); CAM.user = $('fUser').value.trim(); CAM.pass = $('fPass').value; CAM.proto = $('fProto').value; CAM.names = $('fNames').value || CAM.names;
   CAM.int = +String($('fInt').value).replace(',', '.') || 1; CAM.tpl = $('fTpl').value.trim() || CAM.tpl;
   camStats = [{ok:0,err:0},{ok:0,err:0},{ok:0,err:0},{ok:0,err:0}];
   store('camcfg', CAM);
