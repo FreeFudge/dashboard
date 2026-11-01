@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1116">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dashboard">
+<title>Dashboard Test</title>
+<style>
+  /*
+   * Bewusst konservatives CSS/JS: läuft auf iOS 12 / Safari 12 (iPad Air 1).
+   * Kein flex-gap, kein ?. / ??, keine Arrow-Functions, kein fetch.
+   */
+  :root {
+    --bg: #0e1116;
+    --panel: #161b22;
+    --line: #262d36;
+    --text: #e8ecf1;
+    --muted: #8b95a3;
+    --accent: #6cb6ff;
+    --ok: #4cc38a;
+    --warn: #f0b429;
+    --bad: #ff6b6b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); }
+  body {
+    font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-user-select: none;
+    overflow: hidden;
+    display: -webkit-flex; display: flex;
+    padding: 16px;
+  }
+  .panel {
+    -webkit-flex: 1; flex: 1;
+    background: var(--panel);
+    border-radius: 18px;
+    padding: 22px 24px;
+    display: -webkit-flex; display: flex;
+    -webkit-flex-direction: column; flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .panel + .panel, .panel + .col { margin-left: 16px; }
+  .col { -webkit-flex: 1; flex: 1; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; min-width: 0; }
+  .col .panel + .panel { margin-left: 0; margin-top: 16px; }
+  #weather { -webkit-flex: 4; flex: 4; padding: 16px 20px; }
+  #weather .days { display: none; }
+  #weather .clock { font-size: 40px; }
+  #weather .date { font-size: 14px; margin-top: 2px; }
+  #weather .now { margin-top: 10px; }
+  #weather .now-icon { font-size: 46px; margin-right: 12px; }
+  #weather .now-temp { font-size: 42px; }
+  #weather .now-desc { font-size: 15px; }
+  #weather .now-meta { font-size: 12px; margin-top: 2px; }
+  #weather .hours { margin-top: auto; padding-top: 8px; }
+  #weather .hour .i { font-size: 20px; margin: 2px 0; }
+  #weather .hour .v { font-size: 14px; }
+  #weather .hour .t, #weather .hour .p { font-size: 11px; }
+  #weather .status { display: none; }
+  .wtop { display: -webkit-flex; display: flex; -webkit-align-items: flex-start; align-items: flex-start; }
+  .cams { -webkit-flex: 6; flex: 6; padding: 10px; display: -webkit-flex; display: flex; -webkit-flex-direction: row; flex-direction: row; -webkit-flex-wrap: wrap; flex-wrap: wrap; -webkit-align-content: stretch; align-content: stretch; }
+  .cam { position: relative; width: 50%; height: 50%; padding: 4px; }
+  .cam .ph { width: 100%; height: 100%; border-radius: 8px; background: linear-gradient(135deg,#2a3340,#1a2029); color: #556070; display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center; font-size: 14px; }
+  .cam img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; background: #1a2029; display: block; }
+  .cam .cs { position: absolute; right: 12px; top: 10px; font-size: 10px; background: rgba(0,0,0,.6); padding: 2px 6px; border-radius: 4px; color: var(--muted); }
+  .cam .cs.ok { color: var(--ok); }
+  .cam .cs.err { color: var(--bad); }
+  .cams { position: relative; }
+  .gear { position: absolute; right: 14px; bottom: 14px; z-index: 2; font-size: 12px; border: 0; border-radius: 8px; padding: 6px 10px; background: rgba(38,52,69,.9); color: var(--accent); }
+  .sheet { display: none; position: fixed; left: 0; top: 0; right: 0; bottom: 0; background: rgba(0,0,0,.6); z-index: 10; overflow-y: auto; padding: 24px 16px; }
+  .sheet.open { display: block; }
+  .box { max-width: 460px; margin: 0 auto; background: var(--panel); border-radius: 16px; padding: 20px; -webkit-user-select: text; user-select: text; }
+  .box h3 { font-size: 20px; margin-bottom: 4px; }
+  .box .hint { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+  .box label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+  .box input, .box select { display: block; width: 100%; margin-top: 4px; font-size: 16px; padding: 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+  .box details { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+  .box summary { margin-bottom: 8px; }
+  .btns { display: -webkit-flex; display: flex; margin-top: 6px; }
+  .btns button { -webkit-flex: 1; flex: 1; font-size: 15px; padding: 12px 8px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--text); }
+  .btns button + button { margin-left: 10px; }
+  .btns .primary { background: var(--accent); color: #0e1116; border: 0; font-weight: 600; }
+  .link { display: block; margin: 12px auto 0; background: none; border: 0; color: var(--muted); font-size: 14px; }
+  #diag { white-space: pre-wrap; font-size: 11px; color: var(--muted); margin-top: 12px; font-family: ui-monospace, Menlo, monospace; }
+
+  /* ---------- Querformat-Bühne: wird per JS auf die Bildschirmhöhe skaliert ---------- */
+  html { overflow: hidden; background: var(--bg); }
+  body { position: absolute; left: 0; top: 0; -webkit-transform-origin: 0 0; transform-origin: 0 0; }
+  @media (orientation: portrait) { body { -webkit-flex-direction: row; flex-direction: row; } .panel + .col { margin-left: 16px; margin-top: 0; } .days { display: none; } }
+  .rotate { display: none; position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 20; background: var(--bg); color: var(--muted);
+    -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center; text-align: center; font-size: 18px; padding: 30px; }
+  .rotate b { display: block; font-size: 54px; margin-bottom: 12px; color: var(--text); }
+  .fs { position: absolute; right: 14px; top: 12px; font-size: 12px; border: 0; border-radius: 8px; padding: 5px 9px; background: #263445; color: var(--accent); }
+  #weather { position: relative; }
+  .cam .cl { position: absolute; left: 12px; bottom: 10px; font-size: 11px; background: rgba(0,0,0,.55); padding: 2px 6px; border-radius: 4px; }
+  @media (orientation: portrait) {
+    body { -webkit-flex-direction: column; flex-direction: column; }
+    .panel + .panel { margin-left: 0; margin-top: 16px; }
+    .days { display: none; }
+  }
+  .label {
+    font-size: 13px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600;
+  }
+  .row { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; }
+  .grow { -webkit-flex: 1; flex: 1; min-width: 0; }
+
+  /* ---------- Wetter ---------- */
+  .clock { font-size: 64px; font-weight: 200; line-height: 1; letter-spacing: -1px; }
+  .date { font-size: 18px; color: var(--muted); margin-top: 6px; }
+  .now { margin-top: 26px; }
+  .now-icon { font-size: 78px; line-height: 1; margin-right: 18px; }
+  .now-temp { font-size: 72px; font-weight: 200; line-height: 1; }
+  .now-desc { font-size: 20px; margin-top: 4px; }
+  .now-meta { font-size: 15px; color: var(--muted); margin-top: 6px; }
+  .hours {
+    display: -webkit-flex; display: flex;
+    margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line);
+  }
+  .hour { -webkit-flex: 1; flex: 1; text-align: center; }
+  .hour .t { font-size: 13px; color: var(--muted); }
+  .hour .i { font-size: 26px; margin: 6px 0 4px; }
+  .hour .v { font-size: 17px; }
+  .hour .p { font-size: 12px; color: var(--accent); margin-top: 2px; min-height: 14px; }
+  .days { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--line); }
+  .day { padding: 7px 0; font-size: 17px; }
+  .day .n { width: 64px; color: var(--muted); }
+  .day .i { width: 40px; font-size: 22px; }
+  .day .p { width: 56px; font-size: 13px; color: var(--accent); }
+  .day .mm { width: 92px; text-align: right; }
+  .day .mm span { color: var(--muted); }
+
+  /* ---------- Bahn ---------- */
+  .route { font-size: 26px; font-weight: 600; margin-top: 4px; line-height: 1.2; }
+  .route .arrow { color: var(--muted); font-weight: 300; margin: 0 6px; }
+  .deps { margin-top: 16px; -webkit-flex: 1; flex: 1; overflow: hidden; }
+  .dep { padding: 10px 0; border-top: 1px solid var(--line); }
+  .dep:first-child { border-top: 0; }
+  .dep .time { width: 128px; }
+  .dep .sched { font-size: 28px; line-height: 1.1; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .dep .delay { font-size: 17px; font-weight: 600; margin-left: 6px; }
+  .dep .delay { color: var(--bad); }
+  .dep .actual { font-size: 19px; font-weight: 500; margin-top: 1px; font-variant-numeric: tabular-nums; }
+  .actual.ok { color: var(--ok); }
+  .actual.late { color: var(--bad); }
+  .dep .info { min-width: 0; }
+  .dep .train { font-size: 17px; font-weight: 600; }
+  .dep .train .badge {
+    display: inline-block; font-size: 12px; padding: 2px 7px; border-radius: 6px;
+    background: #263445; color: var(--accent); margin-right: 8px; vertical-align: 2px;
+  }
+  .dep .dest { font-size: 15px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .dep .msg { font-size: 13px; color: var(--warn); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dep .right { text-align: right; width: 92px; }
+  .dep .in { font-size: 22px; font-weight: 600; }
+  .dep .in small { font-size: 13px; font-weight: 400; color: var(--muted); }
+  .dep .pl { font-size: 14px; color: var(--muted); margin-top: 2px; }
+  .dep .pl.changed { color: var(--warn); font-weight: 600; }
+  .dep.cancelled .sched, .dep.cancelled .train { text-decoration: line-through; color: var(--muted); }
+  .dep.cancelled .in { color: var(--bad); font-size: 15px; }
+  .dep.soon .in { color: var(--accent); }
+  /* nächster Zug: doppelt so hoch, hebt sich ab */
+  .dep.hero { padding: 22px 12px; margin: 4px 0; background: #1c2633; border-radius: 12px; border-top: 0; }
+  .dep.hero + .dep { border-top: 0; }
+  .dep.hero .time { width: 140px; }
+  .dep.hero .sched { font-size: 44px; }
+  .dep.hero .delay { font-size: 22px; }
+  .dep.hero .actual { font-size: 28px; margin-top: 2px; }
+  .dep.hero .train { font-size: 22px; }
+  .dep.hero .train .badge { font-size: 15px; padding: 3px 9px; }
+  .dep.hero .dest { font-size: 16px; margin-top: 4px; }
+  .dep.hero .msg { font-size: 15px; }
+  .dep.hero .right { width: 92px; }
+  .dep.hero .in { font-size: 38px; }
+  .dep.hero .in small { font-size: 17px; }
+  .dep.hero .pl { font-size: 18px; margin-top: 4px; }
+  .dep.past { padding: 8px 0 10px; }
+  .dep.past .time, .dep.past .info, .dep.past .pl { opacity: .5; }
+  .dep.past .sched { font-size: 22px; }
+  .dep.past .actual { font-size: 16px; }
+  .dep.past .in { color: var(--bad); font-size: 18px; }
+  .status { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .status.err { color: var(--bad); }
+  .empty { color: var(--muted); font-size: 17px; padding: 20px 0; }
+</style>
+</head>
+<body>
+
+<section class="panel" id="trains">
+  <div class="label">Nächste Züge</div>
+  <div class="route" id="route"></div>
+  <div class="deps" id="deps"><div class="empty">Abfahrten werden geladen …</div></div>
+  <div class="status" id="tStatus"></div>
+</section>
+<div class="col">
+<section class="panel" id="weather">
+  <button class="fs" id="fs" type="button">⛶ Vollbild</button>
+  <div class="wtop"><div class="grow">
+  <div class="clock" id="clock">--:--</div>
+  <div class="date" id="date"></div>
+  </div>
+  <div class="row now" style="margin-top:0">
+    <div class="now-icon" id="nowIcon">·</div>
+    <div class="grow">
+      <div class="now-temp" id="nowTemp">--°</div>
+      <div class="now-desc" id="nowDesc">Wetter wird geladen …</div>
+      <div class="now-meta" id="nowMeta"></div>
+    </div>
+  </div></div>
+
+  <div class="hours" id="hours"></div>
+  <div class="days" id="days"></div>
+  <div class="status" id="wStatus"></div>
+</section>
+<section class="panel cams" id="cams">
+    <div class="cam"><img id="cam0" alt=""><span class="cs" id="cs0">–</span><span class="cl" id="cl0">Kamera 1</span></div>
+    <div class="cam"><img id="cam1" alt=""><span class="cs" id="cs1">–</span><span class="cl" id="cl1">Kamera 2</span></div>
+    <div class="cam"><img id="cam2" alt=""><span class="cs" id="cs2">–</span><span class="cl" id="cl2">Kamera 3</span></div>
+    <div class="cam"><img id="cam3" alt=""><span class="cs" id="cs3">–</span><span class="cl" id="cl3">Kamera 4</span></div>
+    <button class="gear" id="gear" type="button">⚙︎ Kameras einrichten</button>
+  </section>
+<div class="sheet" id="sheet">
+  <div class="box">
+    <h3>Kamera-Test einrichten</h3>
+    <p class="hint">Wird nur auf diesem Gerät gespeichert, nicht auf GitHub.</p>
+    <label>IP-Adresse des Rekorders<input id="fIp" placeholder="z. B. 192.168.178.50" inputmode="decimal" autocomplete="off"></label>
+    <label>Protokoll<select id="fProto"><option value="https">https (empfohlen)</option><option value="http">http</option></select></label>
+    <label>Kameranamen (mit Komma getrennt)<input id="fNames" placeholder="Einfahrt, Haustür, Garten, Hof"></label>
+    <label>Aktualisierung (Sekunden)<input id="fInt" inputmode="decimal" placeholder="1"></label>
+    <details><summary>Erweitert: Bild-Adresse</summary>
+      <label>Vorlage, {ip} und {ch} werden ersetzt<input id="fTpl" autocomplete="off"></label>
+    </details>
+    <div class="btns">
+      <button type="button" id="bLogin">Rekorder öffnen &amp; anmelden</button>
+      <button type="button" id="bSave" class="primary">Speichern &amp; testen</button>
+    </div>
+    <button type="button" id="bClose" class="link">Schließen</button>
+    <pre id="diag"></pre>
+  </div>
+</div>
+</div>
+
+<script>
+/* =====================================================================
+ * EINSTELLUNGEN
+ * Entweder hier ändern – oder bequemer über die Adresse, z. B.:
+ *   index.html?von=Walldorf(Hess)&nach=Frankfurt(Main)Hbf&titelVon=Walldorf&titelNach=Frankfurt Hbf
+ * ===================================================================== */
+var CONFIG = {
+  ort:   'Mörfelden-Walldorf', // Ortsname für die Anzeige
+  lat:   '49.99',              // Koordinaten (64546 Mörfelden-Walldorf)
+  lon:   '8.58',
+  von:   'Walldorf(Hess)',     // Abfahrtsbahnhof, exakter DB-Name
+  nach:  'Frankfurt(Main)Hbf', // Zug muss über diesen Halt fahren
+  titelVon:  'Walldorf',       // Anzeige-Name oben rechts
+  titelNach: 'Frankfurt Hbf',
+  anzahl: 4,               // kommende Abfahrten: 1 große + 3 normale
+  wetterIntervall: 15,     // Minuten
+  bahnIntervall: 1.5       // Minuten
+};
+
+/* ---------- URL-Parameter übernehmen ---------- */
+(function () {
+  var q = location.search.replace(/^\?/, '').split('&');
+  for (var i = 0; i < q.length; i++) {
+    var kv = q[i].split('=');
+    if (!kv[0]) continue;
+    var k = decodeURIComponent(kv[0]);
+    var v = decodeURIComponent((kv[1] || '').replace(/\+/g, ' '));
+    if (CONFIG.hasOwnProperty(k)) CONFIG[k] = v;
+    if (k === 'ort' && !/[?&]lat=/.test(location.search)) { CONFIG.lat = ''; CONFIG.lon = ''; }
+  }
+})();
+
+var TAGE = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+var TAGE_LANG = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+var MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+
+function $(id) { return document.getElementById(id); }
+function pad(n) { return (n < 10 ? '0' : '') + n; }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+  });
+}
+function hhmm(d) { return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+
+function getJSON(url, ok, fail) {
+  var x = new XMLHttpRequest();
+  x.open('GET', url, true);
+  x.timeout = 20000;
+  x.onload = function () {
+    if (x.status >= 200 && x.status < 300) {
+      try { ok(JSON.parse(x.responseText)); } catch (e) { fail('Antwort unlesbar'); }
+    } else { fail('HTTP ' + x.status); }
+  };
+  x.onerror = function () { fail('keine Verbindung'); };
+  x.ontimeout = function () { fail('Zeitüberschreitung'); };
+  x.send();
+}
+
+function store(k, v) {
+  try {
+    if (v === undefined) return JSON.parse(localStorage.getItem(k));
+    localStorage.setItem(k, JSON.stringify(v));
+  } catch (e) { return null; }
+}
+
+/* ---------- Uhr ---------- */
+function tickClock() {
+  var d = new Date();
+  $('clock').textContent = hhmm(d);
+  $('date').textContent = TAGE_LANG[d.getDay()] + ', ' + d.getDate() + '. ' + MONATE[d.getMonth()];
+}
+
+/* ---------- Wetter (Open-Meteo, ohne API-Key) ---------- */
+function wmo(code, isDay) {
+  var night = isDay === 0;
+  if (code === 0) return [night ? '🌙' : '☀️', 'Klar'];
+  if (code === 1) return [night ? '🌙' : '🌤️', 'Überwiegend klar'];
+  if (code === 2) return [night ? '☁️' : '⛅', 'Teilweise bewölkt'];
+  if (code === 3) return ['☁️', 'Bedeckt'];
+  if (code === 45 || code === 48) return ['🌫️', 'Nebel'];
+  if (code >= 51 && code <= 57) return ['🌦️', 'Nieselregen'];
+  if (code >= 61 && code <= 65) return ['🌧️', 'Regen'];
+  if (code === 66 || code === 67) return ['🧊', 'Gefrierender Regen'];
+  if (code >= 71 && code <= 77) return ['🌨️', 'Schnee'];
+  if (code >= 80 && code <= 82) return ['🌦️', 'Regenschauer'];
+  if (code === 85 || code === 86) return ['🌨️', 'Schneeschauer'];
+  if (code >= 95) return ['⛈️', 'Gewitter'];
+  return ['·', ''];
+}
+
+function withCoords(cb) {
+  if (CONFIG.lat && CONFIG.lon) return cb(CONFIG.lat, CONFIG.lon);
+  var key = 'geo:' + CONFIG.ort;
+  var cached = store(key);
+  if (cached) return cb(cached[0], cached[1]);
+  getJSON('https://geocoding-api.open-meteo.com/v1/search?count=1&language=de&name=' + encodeURIComponent(CONFIG.ort),
+    function (r) {
+      if (!r.results || !r.results.length) return wErr('Ort „' + CONFIG.ort + '“ nicht gefunden');
+      var g = r.results[0];
+      store(key, [g.latitude, g.longitude]);
+      cb(g.latitude, g.longitude);
+    }, wErr);
+}
+
+function wErr(msg) {
+  $('wStatus').className = 'status err';
+  $('wStatus').textContent = 'Wetter: ' + msg + ' – neuer Versuch folgt';
+}
+
+function loadWeather() {
+  withCoords(function (lat, lon) {
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
+      '&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,is_day' +
+      '&hourly=temperature_2m,weather_code,precipitation_probability,is_day' +
+      '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
+      '&timezone=Europe%2FBerlin&forecast_days=6&wind_speed_unit=kmh';
+    getJSON(url, renderWeather, wErr);
+  });
+}
+
+function renderWeather(w) {
+  var c = w.current, h = w.hourly, d = w.daily, i;
+  var ic = wmo(c.weather_code, c.is_day);
+  $('nowIcon').textContent = ic[0];
+  $('nowTemp').textContent = Math.round(c.temperature_2m) + '°';
+  $('nowDesc').textContent = ic[1];
+
+  // Startindex: erste Stunde nach "jetzt" (Zeitstrings im Format YYYY-MM-DDTHH:MM, direkt vergleichbar)
+  var start = 0;
+  while (start < h.time.length && h.time[start] <= c.time) start++;
+  var rainNow = h.precipitation_probability[Math.max(0, start - 1)];
+  $('nowMeta').textContent = 'Gefühlt ' + Math.round(c.apparent_temperature) + '° · Wind ' +
+    Math.round(c.wind_speed_10m) + ' km/h' + (rainNow != null ? ' · Regen ' + rainNow + ' %' : '');
+
+  var html = '';
+  for (i = start; i < start + 8 && i < h.time.length; i++) {
+    var hi = wmo(h.weather_code[i], h.is_day[i]);
+    var p = h.precipitation_probability[i];
+    html += '<div class="hour"><div class="t">' + h.time[i].substr(11, 2) + ' Uhr</div>' +
+      '<div class="i">' + hi[0] + '</div><div class="v">' + Math.round(h.temperature_2m[i]) + '°</div>' +
+      '<div class="p">' + (p >= 20 ? p + ' %' : '') + '</div></div>';
+  }
+  $('hours').innerHTML = html;
+
+  html = '';
+  for (i = 0; i < d.time.length; i++) {
+    var parts = d.time[i].split('-');
+    var day = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+    var di = wmo(d.weather_code[i], 1);
+    var dp = d.precipitation_probability_max[i];
+    html += '<div class="row day"><div class="n">' + (i === 0 ? 'Heute' : TAGE[day.getDay()]) + '</div>' +
+      '<div class="i">' + di[0] + '</div><div class="grow">' + esc(di[1]) + '</div>' +
+      '<div class="p">' + (dp >= 20 ? '💧' + dp + ' %' : '') + '</div>' +
+      '<div class="mm"><span>' + Math.round(d.temperature_2m_min[i]) + '°</span> / ' +
+      Math.round(d.temperature_2m_max[i]) + '°</div></div>';
+  }
+  $('days').innerHTML = html;
+
+  $('wStatus').className = 'status';
+  $('wStatus').textContent = 'Wetter aktualisiert ' + hhmm(new Date()) + ' · Open-Meteo';
+}
+
+/* ---------- Bahn (DBF / IRIS-Echtzeitdaten der DB, ohne API-Key) ---------- */
+function tErr(msg) {
+  $('tStatus').className = 'status err';
+  $('tStatus').textContent = 'Bahn: ' + msg + ' – neuer Versuch folgt';
+}
+
+function loadTrains() {
+  var url = 'https://dbf.finalrewind.org/' + encodeURIComponent(CONFIG.von) +
+    '.json?version=3&no_related=1&past=1&limit=50' +
+    (CONFIG.nach ? '&via=' + encodeURIComponent(CONFIG.nach) : '');
+  getJSON(url, function (r) {
+    if (r.error) return tErr(r.error);
+    renderTrains(r.departures || []);
+  }, tErr);
+}
+
+function depRow(t, diff, hero) {
+  var delay = t.delayDeparture;
+  var dTxt = delay > 0 ? '+' + delay : '';
+  // tatsächliche Abfahrtszeit wie in der DB-App: grün = pünktlich, rot = verspätet
+  var actual = '';
+  if (delay != null && !t.isCancelled) {
+    var hm = t.scheduledDeparture.split(':');
+    var a = (+hm[0] * 60 + +hm[1] + delay + 1440) % 1440;
+    actual = '<div class="actual ' + (delay > 0 ? 'late' : 'ok') + '">' + pad(Math.floor(a / 60)) + ':' + pad(a % 60) + '</div>';
+  }
+
+  var pl = t.platform || t.scheduledPlatform || '–';
+  var plChanged = t.platform && t.scheduledPlatform && t.platform !== t.scheduledPlatform;
+
+  var msg = '';
+  var m = t.messages || {};
+  var msgs = (m.qos || []).concat(m.delay || []);
+  if (msgs.length) msg = msgs[msgs.length - 1].text;
+
+  var parts = String(t.train || '').split(' ');
+  var badge = parts.length > 1 ? parts.shift() : '';
+
+  var past = diff < 0;
+  if (past) msg = '';
+  var inTxt = past ? '−' + (-diff) + '<small> min</small>' : t.isCancelled ? 'fällt aus' : diff <= 0 ? 'jetzt' : diff + '<small> min</small>';
+
+  return '<div class="row dep' + (past ? ' past' : '') + (t.isCancelled ? ' cancelled' : '') + (!past && !t.isCancelled && diff <= 10 ? ' soon' : '') + (hero ? ' hero' : '') + '">' +
+    '<div class="time"><span class="sched">' + esc(t.scheduledDeparture) + '</span>' +
+    (dTxt && !t.isCancelled ? '<span class="delay">' + dTxt + '</span>' : '') + actual + '</div>' +
+    '<div class="grow info"><div class="train">' + (badge ? '<span class="badge">' + esc(badge) + '</span>' : '') + esc(parts.join(' ')) + '</div>' +
+    '<div class="dest">→ ' + esc(t.destination) + '</div>' +
+    (msg ? '<div class="msg">' + esc(msg) + '</div>' : '') + '</div>' +
+    '<div class="right"><div class="in">' + inTxt + '</div>' +
+    '<div class="pl' + (plChanged ? ' changed' : '') + '">Gl. ' + esc(pl) + '</div></div></div>';
+}
+
+function renderTrains(list) {
+  var now = new Date();
+  var nowMin = now.getHours() * 60 + now.getMinutes();
+  var html = '', shown = 0, last = null, heroDone = false;
+
+  for (var i = 0; i < list.length && shown < +CONFIG.anzahl; i++) {
+    var t = list[i];
+    if (!t.scheduledDeparture) continue;            // endet hier – keine Abfahrt
+    var hm = t.scheduledDeparture.split(':');
+    var sched = +hm[0] * 60 + +hm[1];
+    var delay = t.delayDeparture;                    // null = keine Echtzeit
+    var real = sched + (delay || 0);
+    var diff = real - nowMin;
+    if (diff < -720) diff += 1440;                   // über Mitternacht
+    if (diff > 720) diff -= 1440;
+    if (diff < 0) {                                  // schon weg
+      if (!t.isCancelled && (!last || diff >= last.diff)) last = { t: t, diff: diff };
+      continue;
+    }
+
+    var hero = !heroDone && !t.isCancelled;
+    if (hero) heroDone = true;
+    html += depRow(t, diff, hero);
+    shown++;
+  }
+
+  // zuletzt abgefahrener Zug (verschwindet 10 Min. nach Abfahrt) ganz oben
+  if (last && last.diff >= -10) html = depRow(last.t, last.diff) + html;
+
+  $('deps').innerHTML = html || '<div class="empty">Keine passenden Abfahrten gefunden.<br>Bahnhofsnamen prüfen.</div>';
+  $('tStatus').className = 'status';
+  $('tStatus').textContent = 'Aktualisiert ' + hhmm(now) + ' · Echtzeitdaten der DB via dbf.finalrewind.org';
+}
+
+/* ---------- Kameras (Test) ---------- */
+var CAM = store('camcfg') || {};
+if (!CAM.proto) CAM.proto = 'https';
+if (!CAM.tpl) CAM.tpl = '{proto}://{ip}/stw-cgi/video.cgi?msubmenu=snapshot&action=view&Channel={ch}';
+if (!CAM.names) CAM.names = 'Einfahrt, Haustür, Garten, Hof';
+if (!CAM.int) CAM.int = 1;
+var camTimer = null, camBusy = [false, false, false, false], camStats = [{ok:0,err:0},{ok:0,err:0},{ok:0,err:0},{ok:0,err:0}];
+
+function camUrl(ch) {
+  return CAM.tpl.replace('{proto}', CAM.proto).replace('{ip}', CAM.ip).replace('{ch}', ch) +
+    (CAM.tpl.indexOf('?') >= 0 ? '&' : '?') + '_t=' + Date.now();
+}
+function camLabel() {
+  var n = String(CAM.names).split(',');
+  for (var i = 0; i < 4; i++) $('cl' + i).textContent = (n[i] || 'Kamera ' + (i + 1)).trim();
+}
+function camLoad(ch) {
+  if (camBusy[ch] || !CAM.ip) return;
+  camBusy[ch] = true;
+  var img = new Image(), t0 = Date.now(), url = camUrl(ch);
+  var done = function (ok) {
+    camBusy[ch] = false;
+    var cs = $('cs' + ch);
+    if (ok) {
+      $('cam' + ch).src = img.src;
+      camStats[ch].ok++;
+      cs.className = 'cs ok'; cs.textContent = hhmm(new Date()) + ':' + pad(new Date().getSeconds()) + ' · ' + (Date.now() - t0) + ' ms';
+    } else {
+      camStats[ch].err++;
+      cs.className = 'cs err'; cs.textContent = 'Fehler (' + camStats[ch].err + ')';
+    }
+    diag();
+  };
+  img.onload = function () { done(img.naturalWidth > 0); };
+  img.onerror = function () { done(false); };
+  setTimeout(function () { if (camBusy[ch]) { img.src = ''; done(false); } }, 8000);
+  img.src = url;
+}
+function camStart() {
+  camLabel();
+  if (camTimer) clearInterval(camTimer);
+  if (!CAM.ip) { for (var i = 0; i < 4; i++) $('cs' + i).textContent = 'nicht eingerichtet'; return; }
+  var tickCams = function () { for (var c = 0; c < 4; c++) camLoad(c); };
+  tickCams();
+  camTimer = setInterval(tickCams, Math.max(0.5, +CAM.int) * 1000);
+}
+function diag() {
+  var lines = ['Seite: ' + location.protocol + '//' + location.host, 'Bild-URL Kanal 0: ' + (CAM.ip ? camUrl(0).replace(/&_t=\d+/, '') : '–')];
+  for (var i = 0; i < 4; i++) lines.push('Kanal ' + i + ': ' + camStats[i].ok + ' ok, ' + camStats[i].err + ' Fehler');
+  $('diag').textContent = lines.join('\n');
+}
+function openSheet() {
+  $('fIp').value = CAM.ip || ''; $('fProto').value = CAM.proto; $('fNames').value = CAM.names;
+  $('fInt').value = CAM.int; $('fTpl').value = CAM.tpl; diag();
+  $('sheet').className = 'sheet open';
+}
+$('gear').addEventListener('click', openSheet);
+$('bClose').addEventListener('click', function () { $('sheet').className = 'sheet'; });
+$('bSave').addEventListener('click', function () {
+  CAM.ip = $('fIp').value.trim(); CAM.proto = $('fProto').value; CAM.names = $('fNames').value || CAM.names;
+  CAM.int = +String($('fInt').value).replace(',', '.') || 1; CAM.tpl = $('fTpl').value.trim() || CAM.tpl;
+  camStats = [{ok:0,err:0},{ok:0,err:0},{ok:0,err:0},{ok:0,err:0}];
+  store('camcfg', CAM);
+  $('sheet').className = 'sheet';
+  camStart();
+});
+$('bLogin').addEventListener('click', function () {
+  var ip = $('fIp').value.trim();
+  if (ip) window.open($('fProto').value + '://' + ip + '/', '_blank');
+});
+
+/* ---------- Start ---------- */
+$('route').innerHTML = esc(CONFIG.titelVon || CONFIG.von) + (CONFIG.nach ? '<span class="arrow">→</span>' + esc(CONFIG.titelNach || CONFIG.nach) : '');
+/*
+ * Zeitsteuerung: Ein Takt alle 5 Sekunden prüft, ob Daten fällig sind.
+ * iOS pausiert Timer, solange das Display aus ist. Nach dem Einschalten
+ * merkt der Takt die Lücke und lädt sofort neu, statt 90 s zu warten.
+ */
+var lastTrains = 0, lastWeather = 0, lastTick = Date.now(), pageStart = Date.now();
+function refreshAll() {
+  lastTrains = Date.now(); loadTrains();
+  lastWeather = Date.now(); loadWeather();
+}
+function tick() {
+  var now = Date.now();
+  tickClock();
+  if (now - pageStart > 6 * 3600000) { location.reload(); return; } // alle 6 h komplett neu laden
+  if (now - lastTick > 20000) { lastTick = now; refreshAll(); return; } // Display war aus
+  lastTick = now;
+  if (now - lastTrains >= CONFIG.bahnIntervall * 60000) { lastTrains = now; loadTrains(); }
+  if (now - lastWeather >= CONFIG.wetterIntervall * 60000) { lastWeather = now; loadWeather(); }
+}
+function onWake() {
+  if (document.hidden || Date.now() - lastTrains < 5000) return;
+  lastTick = Date.now();
+  tickClock();
+  refreshAll();
+}
+document.addEventListener('visibilitychange', onWake);
+window.addEventListener('pageshow', function (e) { if (e.persisted) onWake(); });
+window.addEventListener('focus', onWake);
+
+tickClock();
+refreshAll();
+setInterval(tick, 5000);
+camStart();
+// Tippen auf eine Seite = sofort aktualisieren
+$('weather').addEventListener('click', function () { lastWeather = Date.now(); loadWeather(); });
+$('trains').addEventListener('click', function () { lastTrains = Date.now(); loadTrains(); });
+</script>
+<div class="rotate" id="rotate"><div><b>⤾</b>Bitte das Handy quer halten</div></div>
+<script>
+/* Bühne skalieren: feste logische Höhe, Breite folgt dem Bildschirm (Pixel quer ≈ 2,2 : 1) */
+(function () {
+  var H = 640;
+  function fit() {
+    var w = window.innerWidth, h = window.innerHeight;
+    document.getElementById('rotate').style.display = h > w ? 'flex' : 'none';
+    var sc = h / H;
+    var b = document.body.style;
+    b.width = (w / sc) + 'px'; b.height = H + 'px';
+    b.webkitTransform = b.transform = 'scale(' + sc + ')';
+  }
+  window.addEventListener('resize', fit);
+  window.addEventListener('orientationchange', function () { setTimeout(fit, 200); });
+  fit();
+  document.getElementById('fs').addEventListener('click', function (e) {
+    e.stopPropagation();
+    var el = document.documentElement;
+    var req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (!document.fullscreenElement && req) {
+      var pr = req.call(el);
+      var lock = function () { try { screen.orientation.lock('landscape').catch(function () {}); } catch (x) {} };
+      if (pr && pr.then) pr.then(lock); else lock();
+    } else if (document.exitFullscreen) { document.exitFullscreen(); }
+  });
+})();
+</script>
+</body>
+</html>
