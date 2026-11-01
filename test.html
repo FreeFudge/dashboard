@@ -96,6 +96,35 @@
   .rotate b { display: block; font-size: 54px; margin-bottom: 12px; color: var(--text); }
   .fs { position: absolute; right: 14px; top: 12px; font-size: 12px; border: 0; border-radius: 8px; padding: 5px 9px; background: #263445; color: var(--accent); }
   #weather { position: relative; }
+  /* Proportionen: Bahn ca. 42 %, rechte Spalte ca. 58 %; dort Wetter 35 %, Kameras 65 % */
+  #trains { -webkit-flex: 0.72; flex: 0.72; }
+  #weather { -webkit-flex: 3.5; flex: 3.5; }
+  .cams { -webkit-flex: 6.5; flex: 6.5; }
+  #tStatus { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* schmalere Bildschirme (iPad 4:3): Bahnzeilen kompakter */
+  .narrow .dep .time { width: 100px; }
+  .narrow .dep .sched { font-size: 24px; }
+  .narrow .dep .actual { font-size: 16px; }
+  .narrow .dep .delay { font-size: 14px; margin-left: 4px; }
+  .narrow .dep .right { width: 74px; }
+  .narrow .dep .in { font-size: 19px; }
+  .narrow .dep.hero .time { width: 112px; }
+  .narrow .dep.hero .sched { font-size: 34px; }
+  .narrow .dep.hero .actual { font-size: 22px; }
+  .narrow .dep.hero .delay { font-size: 17px; }
+  .narrow .dep.hero .train { font-size: 18px; white-space: nowrap; }
+  .narrow .dep.hero .dest { font-size: 14px; }
+  .narrow .dep.hero .right { width: 74px; }
+  .narrow .dep.hero .in { font-size: 30px; }
+  .narrow .dep.hero .in small { font-size: 14px; }
+  .narrow .dep.hero .pl { font-size: 15px; }
+  .narrow .dep.past .sched { font-size: 20px; }
+  .narrow #trains .route { font-size: 22px; }
+  .narrow #weather .date { white-space: nowrap; font-size: 13px; }
+  .narrow #weather .clock { font-size: 36px; }
+  .narrow #weather .wtop > .grow { -webkit-flex: none; flex: none; margin-right: 12px; }
+  .narrow #weather .wtop .now { -webkit-flex: 1; flex: 1; min-width: 0; }
+  .narrow #weather .now-icon { font-size: 40px; margin-right: 10px; }
   .cam .cl { position: absolute; left: 12px; bottom: 10px; font-size: 11px; background: rgba(0,0,0,.55); padding: 2px 6px; border-radius: 4px; }
   @media (orientation: portrait) {
     body { -webkit-flex-direction: column; flex-direction: column; }
@@ -144,6 +173,7 @@
   .dep .sched { font-size: 28px; line-height: 1.1; font-weight: 500; font-variant-numeric: tabular-nums; }
   .dep .delay { font-size: 17px; font-weight: 600; margin-left: 6px; }
   .dep .delay { color: var(--bad); }
+  .dep .delay.ok { color: var(--ok); }
   .dep .actual { font-size: 19px; font-weight: 500; margin-top: 1px; font-variant-numeric: tabular-nums; }
   .actual.ok { color: var(--ok); }
   .actual.late { color: var(--bad); }
@@ -153,6 +183,8 @@
     display: inline-block; font-size: 12px; padding: 2px 7px; border-radius: 6px;
     background: #263445; color: var(--accent); margin-right: 8px; vertical-align: 2px;
   }
+  .dep .dest.change { color: var(--warn); }
+  .cam img:not([src]) { visibility: hidden; }
   .dep .dest { font-size: 15px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
   .dep .msg { font-size: 13px; color: var(--warn); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dep .right { text-align: right; width: 92px; }
@@ -217,10 +249,10 @@
   <div class="status" id="wStatus"></div>
 </section>
 <section class="panel cams" id="cams">
-    <div class="cam"><img id="cam0" alt=""><span class="cs" id="cs0">–</span><span class="cl" id="cl0">Kamera 1</span></div>
-    <div class="cam"><img id="cam1" alt=""><span class="cs" id="cs1">–</span><span class="cl" id="cl1">Kamera 2</span></div>
-    <div class="cam"><img id="cam2" alt=""><span class="cs" id="cs2">–</span><span class="cl" id="cl2">Kamera 3</span></div>
-    <div class="cam"><img id="cam3" alt=""><span class="cs" id="cs3">–</span><span class="cl" id="cl3">Kamera 4</span></div>
+    <div class="cam"><img id="cam0" alt=""><span class="cl" id="cl0">Kamera 1</span></div>
+    <div class="cam"><img id="cam1" alt=""><span class="cl" id="cl1">Kamera 2</span></div>
+    <div class="cam"><img id="cam2" alt=""><span class="cl" id="cl2">Kamera 3</span></div>
+    <div class="cam"><img id="cam3" alt=""><span class="cl" id="cl3">Kamera 4</span></div>
     <button class="gear" id="gear" type="button">⚙︎ Kameras einrichten</button>
   </section>
 <div class="sheet" id="sheet">
@@ -232,7 +264,7 @@
     <label>Benutzer (optional, z. B. nur-Ansehen-Benutzer)<input id="fUser" autocomplete="off" autocapitalize="off"></label>
     <label>Passwort (optional)<input id="fPass" type="password" autocomplete="off"></label>
     <label>Kameranamen (mit Komma getrennt)<input id="fNames" placeholder="Einfahrt, Haustür, Garten, Hof"></label>
-    <label>Aktualisierung (Sekunden)<input id="fInt" inputmode="decimal" placeholder="1"></label>
+    <label>Aktualisierung je Kamera (Sekunden, empfohlen 3)<input id="fInt" inputmode="decimal" placeholder="3"></label>
     <details><summary>Erweitert: Bild-Adresse</summary>
       <label>Vorlage, {ip} und {ch} werden ersetzt<input id="fTpl" autocomplete="off"></label>
     </details>
@@ -257,7 +289,9 @@ var CONFIG = {
   lat:   '49.99',              // Koordinaten (64546 Mörfelden-Walldorf)
   lon:   '8.58',
   von:   'Walldorf(Hess)',     // Abfahrtsbahnhof, exakter DB-Name
-  nach:  'Frankfurt(Main)Hbf', // Zug muss über diesen Halt fahren
+  nach:  'Frankfurt(Main)Hbf', // eigentliches Ziel
+  // Züge, die wegen Baustellen vorher enden, trotzdem zeigen (mit Umsteige-Hinweis):
+  auchBis: ['Frankfurt(Main)Stadion', 'Frankfurt(Main)Niederrad', 'Frankfurt(Main)Süd'],
   titelVon:  'Walldorf',       // Anzeige-Name oben rechts
   titelNach: 'Frankfurt Hbf',
   anzahl: 4,               // kommende Abfahrten: 1 große + 3 normale
@@ -418,7 +452,7 @@ function tErr(msg) {
 function loadTrains() {
   var url = 'https://dbf.finalrewind.org/' + encodeURIComponent(CONFIG.von) +
     '.json?version=3&no_related=1&past=1&limit=50' +
-    (CONFIG.nach ? '&via=' + encodeURIComponent(CONFIG.nach) : '');
+    (CONFIG.nach ? '&via=' + encodeURIComponent(viaRegex()) : '');
   getJSON(url, function (r) {
     if (r.error) return tErr(r.error);
     renderTrains(r.departures || []);
@@ -427,13 +461,14 @@ function loadTrains() {
 
 function depRow(t, diff, hero) {
   var delay = t.delayDeparture;
+  var late = delay > 2;                            // bis +2 gilt als pünktlich (grün)
   var dTxt = delay > 0 ? '+' + delay : '';
   // tatsächliche Abfahrtszeit wie in der DB-App: grün = pünktlich, rot = verspätet
   var actual = '';
   if (delay != null && !t.isCancelled) {
     var hm = t.scheduledDeparture.split(':');
     var a = (+hm[0] * 60 + +hm[1] + delay + 1440) % 1440;
-    actual = '<div class="actual ' + (delay > 0 ? 'late' : 'ok') + '">' + pad(Math.floor(a / 60)) + ':' + pad(a % 60) + '</div>';
+    actual = '<div class="actual ' + (late ? 'late' : 'ok') + '">' + pad(Math.floor(a / 60)) + ':' + pad(a % 60) + '</div>';
   }
 
   var pl = t.platform || t.scheduledPlatform || '–';
@@ -444,8 +479,6 @@ function depRow(t, diff, hero) {
   var msgs = (m.qos || []).concat(m.delay || []);
   if (msgs.length) msg = msgs[msgs.length - 1].text;
 
-  var parts = String(t.train || '').split(' ');
-  var badge = parts.length > 1 ? parts.shift() : '';
 
   var past = diff < 0;
   if (past) msg = '';
@@ -453,12 +486,27 @@ function depRow(t, diff, hero) {
 
   return '<div class="row dep' + (past ? ' past' : '') + (t.isCancelled ? ' cancelled' : '') + (!past && !t.isCancelled && diff <= 10 ? ' soon' : '') + (hero ? ' hero' : '') + '">' +
     '<div class="time"><span class="sched">' + esc(t.scheduledDeparture) + '</span>' +
-    (dTxt && !t.isCancelled ? '<span class="delay">' + dTxt + '</span>' : '') + actual + '</div>' +
-    '<div class="grow info"><div class="train">' + (badge ? '<span class="badge">' + esc(badge) + '</span>' : '') + esc(parts.join(' ')) + '</div>' +
-    '<div class="dest">→ ' + esc(t.destination) + '</div>' +
+    (dTxt && !t.isCancelled ? '<span class="delay' + (late ? '' : ' ok') + '">' + dTxt + '</span>' : '') + actual + '</div>' +
+    '<div class="grow info"><div class="train">' + esc(String(t.train || '').replace(/\s+/g, '')) + '</div>' +
+    (reachesTarget(t) ? '' : '<div class="dest change">endet ' + esc(String(t.destination).replace(/^Frankfurt\(Main\)\s*/, 'Ffm ')) + '</div>') +
     (msg ? '<div class="msg">' + esc(msg) + '</div>' : '') + '</div>' +
     '<div class="right"><div class="in">' + inTxt + '</div>' +
     '<div class="pl' + (plChanged ? ' changed' : '') + '">Gl. ' + esc(pl) + '</div></div></div>';
+}
+
+function reEsc(x) { return String(x).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function viaRegex() {
+  var all = [CONFIG.nach].concat(CONFIG.auchBis || []), out = [];
+  for (var i = 0; i < all.length; i++) out.push(reEsc(all[i]));
+  return out.join('|');
+}
+// fährt der Zug bis zum eigentlichen Ziel? (Ziel selbst oder Ziel liegt auf dem weiteren Weg)
+function reachesTarget(t) {
+  var target = String(CONFIG.nach).toLowerCase();
+  if (String(t.destination || '').toLowerCase().indexOf(target) >= 0) return true;
+  var r = t.route || [];
+  for (var i = 0; i < r.length; i++) if (String(r[i].name || '').toLowerCase().indexOf(target) >= 0) return true;
+  return !r.length;   // ohne Streckenangabe lieber nichts behaupten
 }
 
 function renderTrains(list) {
@@ -500,7 +548,7 @@ var CAM = store('camcfg') || {};
 if (!CAM.proto) CAM.proto = 'https';
 if (!CAM.tpl) CAM.tpl = '{proto}://{ip}/stw-cgi/video.cgi?msubmenu=snapshot&action=view&Channel={ch}';
 if (!CAM.names) CAM.names = 'Einfahrt, Haustür, Garten, Hof';
-if (!CAM.int) CAM.int = 1;
+if (!CAM.int || CAM.int < 2) CAM.int = 3;   // Empfehlung: jede Kamera alle 3 s
 var camTimer = null, camBusy = [false, false, false, false], camStats = [{ok:0,err:0},{ok:0,err:0},{ok:0,err:0},{ok:0,err:0}];
 
 function camUrl(ch, hideCred) {
@@ -513,35 +561,39 @@ function camLabel() {
   var n = String(CAM.names).split(',');
   for (var i = 0; i < 4; i++) $('cl' + i).textContent = (n[i] || 'Kamera ' + (i + 1)).trim();
 }
-function camLoad(ch) {
-  if (camBusy[ch] || !CAM.ip) return;
-  camBusy[ch] = true;
-  var img = new Image(), t0 = Date.now(), url = camUrl(ch);
+/*
+ * Kameras nacheinander laden (nie mehrere gleichzeitig) – schont den Rekorder.
+ * Jede Kamera wird etwa alle CAM.int Sekunden neu geholt. Klappt ein Bild nicht,
+ * bleibt das letzte stehen; nach mehreren Fehlern in Folge kurze Pause.
+ */
+var camIdx = 0, camToken = 0, camFails = 0;
+function camLoadNext() {
+  if (!CAM.ip) return;
+  var token = ++camToken, ch = camIdx, t0 = Date.now(), finished = false;
+  camIdx = (camIdx + 1) % 4;
+  var img = new Image();
   var done = function (ok) {
-    camBusy[ch] = false;
-    var cs = $('cs' + ch);
-    if (ok) {
-      $('cam' + ch).src = img.src;
-      camStats[ch].ok++;
-      cs.className = 'cs ok'; cs.textContent = hhmm(new Date()) + ':' + pad(new Date().getSeconds()) + ' · ' + (Date.now() - t0) + ' ms';
-    } else {
-      camStats[ch].err++;
-      cs.className = 'cs err'; cs.textContent = 'Fehler (' + camStats[ch].err + ')';
-    }
+    if (finished || token !== camToken) return;
+    finished = true;
+    if (ok) { $('cam' + ch).src = img.src; camStats[ch].ok++; camFails = 0; }
+    else { camStats[ch].err++; camFails++; }
     diag();
+    var slot = Math.max(0.5, +CAM.int) * 1000 / 4;            // Zeitfenster pro Kamera
+    var wait = camFails >= 8 ? 10000 : Math.max(150, slot - (Date.now() - t0));
+    camTimer = setTimeout(camLoadNext, wait);
   };
   img.onload = function () { done(img.naturalWidth > 0); };
   img.onerror = function () { done(false); };
-  setTimeout(function () { if (camBusy[ch]) { img.src = ''; done(false); } }, 8000);
-  img.src = url;
+  setTimeout(function () { done(false); }, 6000);              // hängende Anfrage abbrechen
+  img.src = camUrl(ch);
 }
 function camStart() {
   camLabel();
-  if (camTimer) clearInterval(camTimer);
-  if (!CAM.ip) { for (var i = 0; i < 4; i++) $('cs' + i).textContent = 'nicht eingerichtet'; return; }
-  var tickCams = function () { for (var c = 0; c < 4; c++) camLoad(c); };
-  tickCams();
-  camTimer = setInterval(tickCams, Math.max(0.5, +CAM.int) * 1000);
+  if (camTimer) clearTimeout(camTimer);
+  camToken++;                                                  // laufende Anfrage verwerfen
+  if (!CAM.ip) return;
+  camIdx = 0; camFails = 0;
+  camLoadNext();
 }
 function diag() {
   var lines = ['Seite: ' + location.protocol + '//' + location.host, 'Bild-URL Kanal 0: ' + (CAM.ip ? camUrl(0, true).replace(/&_t=\d+/, '') : '–')];
@@ -557,7 +609,7 @@ $('gear').addEventListener('click', openSheet);
 $('bClose').addEventListener('click', function () { $('sheet').className = 'sheet'; });
 $('bSave').addEventListener('click', function () {
   CAM.ip = $('fIp').value.trim(); CAM.user = $('fUser').value.trim(); CAM.pass = $('fPass').value; CAM.proto = $('fProto').value; CAM.names = $('fNames').value || CAM.names;
-  CAM.int = +String($('fInt').value).replace(',', '.') || 1; CAM.tpl = $('fTpl').value.trim() || CAM.tpl;
+  CAM.int = +String($('fInt').value).replace(',', '.') || 3; CAM.tpl = $('fTpl').value.trim() || CAM.tpl;
   camStats = [{ok:0,err:0},{ok:0,err:0},{ok:0,err:0},{ok:0,err:0}];
   store('camcfg', CAM);
   $('sheet').className = 'sheet';
@@ -618,6 +670,7 @@ $('trains').addEventListener('click', function () { lastTrains = Date.now(); loa
     var sc = h / H;
     var b = document.body.style;
     b.width = (w / sc) + 'px'; b.height = H + 'px';
+    document.body.className = (w / sc) < 1150 ? 'narrow' : '';
     b.webkitTransform = b.transform = 'scale(' + sc + ')';
   }
   window.addEventListener('resize', fit);
