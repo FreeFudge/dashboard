@@ -96,6 +96,13 @@
   .rotate b { display: block; font-size: 54px; margin-bottom: 12px; color: var(--text); }
   .fs { position: absolute; right: 14px; top: 12px; font-size: 12px; border: 0; border-radius: 8px; padding: 5px 9px; background: #263445; color: var(--accent); }
   #weather { position: relative; }
+  /* Platz besser nutzen: schmalere Ränder und Abstände */
+  body { padding: 8px; }
+  .panel + .panel, .panel + .col { margin-left: 10px; }
+  .col .panel + .panel { margin-top: 10px; }
+  /* Vollbild / Home-Bildschirm: Bedienknöpfe ausblenden */
+  .kiosk .fs, .kiosk .gear { display: none; }
+  .kiosk.showgear .gear { display: block; }
   /* Proportionen: Bahn ca. 42 %, rechte Spalte ca. 58 %; dort Wetter 35 %, Kameras 65 % */
   #trains { -webkit-flex: 0.72; flex: 0.72; }
   #weather { -webkit-flex: 3.5; flex: 3.5; }
@@ -682,16 +689,40 @@ $('trains').addEventListener('click', function () { lastTrains = Date.now(); loa
 /* Bühne skalieren: feste logische Höhe, Breite folgt dem Bildschirm (Pixel quer ≈ 2,2 : 1) */
 (function () {
   var H = 640;
+  var iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  var standalone = !!navigator.standalone ||
+    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+    (window.matchMedia && window.matchMedia('(display-mode: fullscreen)').matches);
+  // Auf dem iPad gibt es kein randloses Vollbild per Knopf (iOS zeigt dann ein X) –
+  // dort startet man die Seite stattdessen über das Symbol auf dem Home-Bildschirm.
+  if (iOS) document.getElementById('fs').style.display = 'none';
+  function isFull() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
   function fit() {
-    var w = window.innerWidth, h = window.innerHeight;
+    var kiosk = standalone || isFull();
+    document.documentElement.className = kiosk ? 'kiosk' : '';
+    var top = (navigator.standalone ? 20 : 0);                 // iOS-Statusleiste (Uhr/Akku) freihalten
+    var w = window.innerWidth, h = window.innerHeight - top;
     document.getElementById('rotate').style.display = h > w ? 'flex' : 'none';
     var sc = h / H;
     var b = document.body.style;
+    b.top = top + 'px';
     b.width = (w / sc) + 'px'; b.height = H + 'px';
     document.body.className = (w / sc) < 1150 ? 'narrow' : '';
     b.webkitTransform = b.transform = 'scale(' + sc + ')';
   }
   window.addEventListener('resize', fit);
+  var refit = function () { fit(); setTimeout(fit, 100); setTimeout(fit, 600); };
+  document.addEventListener('fullscreenchange', refit);
+  document.addEventListener('webkitfullscreenchange', refit);
+  // Im Vollbild ist der Einstellungsknopf versteckt: Tippen auf die Kameras blendet ihn 6 s ein
+  var gearTimer = null;
+  document.getElementById('cams').addEventListener('click', function () {
+    var root = document.documentElement;
+    if (root.className.indexOf('kiosk') < 0) return;
+    root.className = 'kiosk showgear';
+    clearTimeout(gearTimer);
+    gearTimer = setTimeout(function () { root.className = 'kiosk'; }, 6000);
+  });
   window.addEventListener('orientationchange', function () { setTimeout(fit, 200); });
   fit();
   document.getElementById('fs').addEventListener('click', function (e) {
