@@ -102,13 +102,13 @@
   .cams { -webkit-flex: 6.5; flex: 6.5; }
   #tStatus { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* schmalere Bildschirme (iPad 4:3): Bahnzeilen kompakter */
-  .narrow .dep .time { width: 100px; }
+  .narrow .dep .time { width: auto; min-width: 100px; }
   .narrow .dep .sched { font-size: 24px; }
   .narrow .dep .actual { font-size: 16px; }
   .narrow .dep .delay { font-size: 14px; margin-left: 4px; }
   .narrow .dep .right { width: 74px; }
   .narrow .dep .in { font-size: 19px; }
-  .narrow .dep.hero .time { width: 112px; }
+  .narrow .dep.hero .time { width: auto; min-width: 112px; }
   .narrow .dep.hero .sched { font-size: 34px; }
   .narrow .dep.hero .actual { font-size: 22px; }
   .narrow .dep.hero .delay { font-size: 17px; }
@@ -169,11 +169,15 @@
   .deps { margin-top: 16px; -webkit-flex: 1; flex: 1; overflow: hidden; }
   .dep { padding: 10px 0; border-top: 1px solid var(--line); }
   .dep:first-child { border-top: 0; }
-  .dep .time { width: 128px; }
+  .dep .time { width: auto; min-width: 128px; -webkit-flex: none; flex: none; white-space: nowrap; margin-right: 12px; }
   .dep .sched { font-size: 28px; line-height: 1.1; font-weight: 500; font-variant-numeric: tabular-nums; }
   .dep .delay { font-size: 17px; font-weight: 600; margin-left: 6px; }
   .dep .delay { color: var(--bad); }
   .dep .delay.ok { color: var(--ok); }
+  .more { font-size: 13px; color: var(--muted); padding: 14px 0 0; border-top: 1px solid var(--line); }
+  .dep .planned { font-size: 14px; color: var(--muted); text-decoration: line-through; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .dep.hero .planned { font-size: 17px; margin-top: 4px; }
+  .dep .time { -webkit-align-self: center; align-self: center; }
   .dep .actual { font-size: 19px; font-weight: 500; margin-top: 1px; font-variant-numeric: tabular-nums; }
   .actual.ok { color: var(--ok); }
   .actual.late { color: var(--bad); }
@@ -198,7 +202,7 @@
   /* nächster Zug: doppelt so hoch, hebt sich ab */
   .dep.hero { padding: 22px 12px; margin: 4px 0; background: #1c2633; border-radius: 12px; border-top: 0; }
   .dep.hero + .dep { border-top: 0; }
-  .dep.hero .time { width: 140px; }
+  .dep.hero .time { width: auto; min-width: 140px; }
   .dep.hero .sched { font-size: 44px; }
   .dep.hero .delay { font-size: 22px; }
   .dep.hero .actual { font-size: 28px; margin-top: 2px; }
@@ -294,7 +298,7 @@ var CONFIG = {
   auchBis: ['Frankfurt(Main)Stadion', 'Frankfurt(Main)Niederrad', 'Frankfurt(Main)Süd'],
   titelVon:  'Walldorf',       // Anzeige-Name oben rechts
   titelNach: 'Frankfurt Hbf',
-  anzahl: 4,               // kommende Abfahrten: 1 große + 3 normale
+  anzahl: 5,               // kommende Abfahrten: 1 große + 4 normale
   wetterIntervall: 15,     // Minuten
   bahnIntervall: 1.5       // Minuten
 };
@@ -464,11 +468,13 @@ function depRow(t, diff, hero) {
   var late = delay > 2;                            // bis +2 gilt als pünktlich (grün)
   var dTxt = delay > 0 ? '+' + delay : '';
   // tatsächliche Abfahrtszeit wie in der DB-App: grün = pünktlich, rot = verspätet
-  var actual = '';
-  if (delay != null && !t.isCancelled) {
+  // Ruhige Darstellung: groß die tatsächliche Zeit, klein & grau die Planzeit (nur wenn verspätet)
+  var big = t.scheduledDeparture, planned = '';
+  if (delay > 0 && !t.isCancelled) {
     var hm = t.scheduledDeparture.split(':');
     var a = (+hm[0] * 60 + +hm[1] + delay + 1440) % 1440;
-    actual = '<div class="actual ' + (late ? 'late' : 'ok') + '">' + pad(Math.floor(a / 60)) + ':' + pad(a % 60) + '</div>';
+    big = pad(Math.floor(a / 60)) + ':' + pad(a % 60);
+    planned = '<div class="planned">' + esc(t.scheduledDeparture) + '</div>';
   }
 
   var pl = t.platform || t.scheduledPlatform || '–';
@@ -485,15 +491,21 @@ function depRow(t, diff, hero) {
   var inTxt = past ? '−' + (-diff) + '<small> min</small>' : t.isCancelled ? 'fällt aus' : diff <= 0 ? 'jetzt' : diff + '<small> min</small>';
 
   return '<div class="row dep' + (past ? ' past' : '') + (t.isCancelled ? ' cancelled' : '') + (!past && !t.isCancelled && diff <= 10 ? ' soon' : '') + (hero ? ' hero' : '') + '">' +
-    '<div class="time"><span class="sched">' + esc(t.scheduledDeparture) + '</span>' +
-    (dTxt && !t.isCancelled ? '<span class="delay' + (late ? '' : ' ok') + '">' + dTxt + '</span>' : '') + actual + '</div>' +
-    '<div class="grow info"><div class="train">' + esc(String(t.train || '').replace(/\s+/g, '')) + '</div>' +
+    '<div class="time"><span class="sched">' + esc(big) + '</span>' +
+    (dTxt && !t.isCancelled ? '<span class="delay' + (late ? '' : ' ok') + '">' + dTxt + '</span>' : '') + planned + '</div>' +
+    '<div class="grow info"><div class="train">' + esc(trainName(t.train)) + '</div>' +
     (reachesTarget(t) ? '' : '<div class="dest change">endet ' + esc(String(t.destination).replace(/^Frankfurt\(Main\)\s*/, 'Ffm ')) + '</div>') +
     (msg ? '<div class="msg">' + esc(msg) + '</div>' : '') + '</div>' +
     '<div class="right"><div class="in">' + inTxt + '</div>' +
     '<div class="pl' + (plChanged ? ' changed' : '') + '">Gl. ' + esc(pl) + '</div></div></div>';
 }
 
+// "S S7" / "RE RE70" / "S 7" / "RE 70" -> "S7" / "RE70"
+function trainName(x) {
+  var p = String(x || '').replace(/^\s+|\s+$/g, '').split(/\s+/);
+  if (p.length > 1 && p[1].toUpperCase().indexOf(p[0].toUpperCase()) === 0) p.shift();
+  return p.join('');
+}
 function reEsc(x) { return String(x).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function viaRegex() {
   var all = [CONFIG.nach].concat(CONFIG.auchBis || []), out = [];
@@ -533,6 +545,12 @@ function renderTrains(list) {
     if (hero) heroDone = true;
     html += depRow(t, diff, hero);
     shown++;
+  }
+
+  // Die Datenquelle schaut nur ca. 3 Stunden voraus – nachts bleibt die Liste daher kürzer
+  if (shown < +CONFIG.anzahl && shown > 0) {
+    var until = new Date(now.getTime() + 180 * 60000);
+    html += '<div class="more">Weitere Abfahrten ab ca. ' + hhmm(until) + ' Uhr noch nicht abrufbar</div>';
   }
 
   // zuletzt abgefahrener Zug (verschwindet 10 Min. nach Abfahrt) ganz oben
