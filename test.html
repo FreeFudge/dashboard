@@ -290,8 +290,8 @@
     <label>Protokoll<select id="fProto"><option value="https">https (empfohlen)</option><option value="http">http</option></select></label>
     <label>Benutzer (optional, z. B. nur-Ansehen-Benutzer)<input id="fUser" autocomplete="off" autocapitalize="off"></label>
     <label>Passwort (optional)<input id="fPass" type="password" autocomplete="off"></label>
-    <label>Kameranamen (mit Komma getrennt)<input id="fNames" placeholder="Einfahrt, Haustür, Garten, Hof"></label>
-    <label>Aktualisierung je Kamera (Sekunden, empfohlen 3)<input id="fInt" inputmode="decimal" placeholder="3"></label>
+    <label>Kameranamen (mit Komma getrennt)<input id="fNames" placeholder="Einfahrt, Hof 1, Hof 2, Haustür"></label>
+    <label>Aktualisierung je Kamera (Sekunden, Standard 2)<input id="fInt" inputmode="decimal" placeholder="2"></label>
     <details><summary>Erweitert: Bild-Adresse</summary>
       <label>Vorlage, {ip} und {ch} werden ersetzt<input id="fTpl" autocomplete="off"></label>
     </details>
@@ -588,8 +588,8 @@ function renderTrains(list) {
 var CAM = store('camcfg') || {};
 if (!CAM.proto) CAM.proto = 'https';
 if (!CAM.tpl) CAM.tpl = '{proto}://{ip}/stw-cgi/video.cgi?msubmenu=snapshot&action=view&Channel={ch}';
-if (!CAM.names) CAM.names = 'Einfahrt, Haustür, Garten, Hof';
-if (!CAM.int || CAM.int < 2) CAM.int = 3;   // Empfehlung: jede Kamera alle 3 s
+if (!CAM.names || CAM.names === 'Einfahrt, Haustür, Garten, Hof') CAM.names = 'Einfahrt, Hof 1, Hof 2, Haustür';
+if (!CAM.int || CAM.int < 1) CAM.int = 2;   // Standard: jede Kamera alle 2 s
 var camTimer = null, camBusy = [false, false, false, false], camStats = [{ok:0,err:0},{ok:0,err:0},{ok:0,err:0},{ok:0,err:0}];
 
 function camUrl(ch, hideCred) {
@@ -650,7 +650,7 @@ $('gear').addEventListener('click', openSheet);
 $('bClose').addEventListener('click', function () { $('sheet').className = 'sheet'; });
 $('bSave').addEventListener('click', function () {
   CAM.ip = $('fIp').value.trim(); CAM.user = $('fUser').value.trim(); CAM.pass = $('fPass').value; CAM.proto = $('fProto').value; CAM.names = $('fNames').value || CAM.names;
-  CAM.int = +String($('fInt').value).replace(',', '.') || 3; CAM.tpl = $('fTpl').value.trim() || CAM.tpl;
+  CAM.int = +String($('fInt').value).replace(',', '.') || 2; CAM.tpl = $('fTpl').value.trim() || CAM.tpl;
   camStats = [{ok:0,err:0},{ok:0,err:0},{ok:0,err:0},{ok:0,err:0}];
   store('camcfg', CAM);
   $('sheet').className = 'sheet';
